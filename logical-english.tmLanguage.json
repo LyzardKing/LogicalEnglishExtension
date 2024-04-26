@@ -1,0 +1,150 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Logical English",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#type-checking-enabled-comment"
+    },
+    {
+      "include": "#multiline-comments"
+    },
+    {
+      "include": "#type-hierarchy-headers"
+    },
+    {
+      "include": "#template-headers"
+    },
+    {
+      "include": "#knowledge-base-headers"
+    },
+    {
+      "include": "#scenario-headers"
+    },
+    {
+      "include": "#query-headers"
+    },
+    {
+      "include": "#template-types"
+    },
+    {
+      "include": "#predefined-constants"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.logical-english",
+          "match": "(\\bit is the case that\\b|\\bit is not the case that\\b|^\\s*if\\b|\\bif\\s*$|^\\s*and\\b|\\band\\s*$|^\\s*or\\b|\\bor\\s*$|^\\s*because\\b|\\because\\s*$|\\s+that\\s+)"
+        }
+      ]
+    },
+    "comments": {
+      "match": "(%)(.*)",
+      "name": "comment.line.help.logical-english",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.comment.logical-english"
+        }
+      }
+    },
+    "type-hierarchy-headers": {
+      "match": "^(\\s*)(the type hierarchy is)(:)(\\s*)$",
+      "name": "entity.type-hierarchy.logical-english",
+      "captures": {
+        "2": {
+          "name": "storage.type.type-hierarchy.logical-english"
+        },
+        "3": {
+          "name": "punctuation.section.type-hierarchy.begin.logical-english"
+        }
+      }
+    },
+    "template-headers": {
+      "match": "^(\\s*)(the templates are)(:)(\\s*)$",
+      "name": "entity.template.logical-english",
+      "captures": {
+        "2": {
+          "name": "storage.type.template.logical-english"
+        },
+        "3": {
+          "name": "punctuation.section.template.begin.logical-english"
+        }
+      }
+    },
+    "knowledge-base-headers": {
+      "match": "^(\\s*)(the knowledge base) ([\\w|\\s]*)(includes)(:\\s*$)",
+      "name": "entity.knowledge-base.logical-english",
+      "captures": {
+        "2": {
+          "name": "storage.type.knowledge-base.logical-english"
+        },
+        "3": {
+          "name": "variable.other.knowledge-base-name.logical-english"
+        },
+        "4": {
+          "name": "storage.type.knowledge-base.logical-english"
+        }
+      }
+    },
+    "scenario-headers": {
+      "match": "^(\\s*)(scenario) ([\\w|\\s]+) (is)(:\\s*$)",
+      "name": "entity.scenario.logical-english",
+      "captures": {
+        "2": {
+          "name": "storage.type.scenario.logical-english"
+        },
+        "3": {
+          "name": "variable.other.scenario-name.logical-english"
+        },
+        "4": {
+          "name": "storage.type.scenario.logical-english"
+        }
+      }
+    },
+    "query-headers": {
+      "match": "^(\\s*)(query) ([\\w|\\s]+) (is)(:\\s*$)",
+      "name": "entity.query.logical-english",
+      "captures": {
+        "2": {
+          "name": "storage.type.query.logical-english"
+        },
+        "3": {
+          "name": "variable.other.query-name.logical-english"
+        },
+        "4": {
+          "name": "storage.type.query.logical-english"
+        }
+      }
+    },
+    "template-types": {
+      "match": "(\\*)(\\s*an? \\w[\\s\\w]*)(\\*)",
+      "name": "entity.type.template.logical-english",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.type.begin.logical-english"
+        },
+        "2": {
+          "name": "entity.name.type.template-type.logical-english"
+        },
+        "3": {
+          "name": "punctuation.definition.type.end.logical-english"
+        }
+      }
+    },
+    "predefined-constants": {
+      "match": "\\b(unknown)\\b",
+      "name": "variable.special.predefined.logical-english"
+    }
+  },
+  "scopeName": "source.logical-english"
+}

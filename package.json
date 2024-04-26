@@ -1,0 +1,100 @@
+{
+  "name": "logical-english-extension",
+  "displayName": "Logical English Extension",
+  "description": "",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LyzardKing/LogicalEnglishExtension.git"
+  },
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:logical-english"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "logical-english",
+        "extensions": [
+          ".le"
+        ],
+        "mimetypes": [
+          "text/x-code-output"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "logical-english",
+        "scopeName": "source.logical-english",
+        "path": "./logical-english.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "logical-english-extension.query",
+        "title": "Query Logical English",
+        "icon": "$(run)"
+      },
+      {
+        "command": "logical-english-extension.query-next",
+        "title": "Query Logical English - Next Solution",
+        "icon": "$(debug-continue)",
+        "enablement": "logical-english-extension.next-result"
+      },
+      {
+        "command": "logical-english-extension.show-prolog",
+        "title": "Shoe Prolog - Logical English",
+        "icon": "$(debug)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "logical-english-extension.query",
+          "group": "navigation",
+          "when": "resourceExtname == .le"
+        },
+        {
+          "command": "logical-english-extension.query-next",
+          "group": "navigation",
+          "when": "resourceExtname == .le"
+        },
+        {
+          "command": "logical-english-extension.show-prolog",
+          "group": "navigation",
+          "when": "resourceExtname == .le"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.88.0",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "@vscode/test-cli": "^0.0.8",
+    "@vscode/test-electron": "^2.3.9",
+    "@vscode/vsce": "^2.26.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "swipl-stdio": "^1.0.4"
+  }
+}
