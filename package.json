@@ -105,6 +105,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "swipl-stdio": "^1.0.4"
+    "swipl-stdio": "^1.0.4",
+    "swipl-wasm": "^3.7.9"
   }
 }
