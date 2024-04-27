@@ -1,5 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
+import { createWriteStream } from 'fs';
+import { Readable } from 'stream';
 import * as vscode from 'vscode';
 const swipl = require('swipl-stdio');
 
@@ -10,6 +12,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "logical-english-extension" is now active!');
+
+	// Check configuration
+	const pull_pack = vscode.workspace.getConfiguration().get('logicalenglish.pull_pack');
+	if (pull_pack) {
+		update_le_pack(context);
+	}
 
 	//Create output channel
 	let le_output = vscode.window.createOutputChannel("Logical English");
@@ -58,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext) {
 working_directory(_, '${filename.replace(/\/\w+.\w+$/g, "")}'),
 use_module(${await set_library()}),
 read_file_to_string('${filename}', Document, []),
-le_answer:parse_and_query_and_explanation_text('${module}', en(Document), ${query}, with(${scenario}),Answer).`);
+parse_and_query_and_explanation_text('${module}', en(Document), ${query}, with(${scenario}),Answer).`);
 			// parse_and_query_and_explanation('${module}', en(Document), ${query}, with(${scenario}), Answer).`);
 			// engine.close();
 			vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
@@ -182,4 +190,31 @@ function parse_output(output: any[], intent: number, le_output: vscode.OutputCha
 			}
 		}
 	});
+}
+
+async function update_le_pack(context: vscode.ExtensionContext) {
+	const engine = new swipl.Engine();
+	const output = await engine.call(`pack_info(logicalenglish).`);
+	console.log(output);
+	if (output !== false) {
+		console.log("Logical English pack already installed.");
+
+	} else {
+		console.log("Logical English pack missing. Downloading...");
+		// Use the bundled version temporarily
+		const filename = context.asAbsolutePath('logicalenglish-0.0.4.zip');
+		await engine.call(`pack_install('${filename}', [interactive(false)]).`);
+		// const answer = await fetch("https://api.github.com/repos/logicalcontracts/logicalenglish/contents/pack");
+		// const le_repo = await answer.json();
+		// //@ts-ignore
+		// const le_pack = le_repo[le_repo.length-1].download_url;
+		// const filename = le_pack.split("/").pop();
+		// let writer = createWriteStream(`/tmp/${filename}`);
+		// let content = await fetch(le_pack);
+		// if (content.ok && content.body) {
+		// 	Readable.fromWeb(content.body).pipe(writer);
+		// 	await engine.call(`pack_install('/tmp/${filename}', [interactive(false)]).`);
+		// }
+	}
+	engine.close();
 }

@@ -72,6 +72,16 @@
           "when": "resourceExtname == .le"
         }
       ]
+    },
+    "configuration": {
+      "title": "Logical English",
+      "properties": {
+        "logicalenglish.pull_pack": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically pull the latest le pack if not already installed."
+        }
+      }
     }
   },
   "scripts": {
