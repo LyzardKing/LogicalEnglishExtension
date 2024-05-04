@@ -91,7 +91,8 @@
     "webpack": "webpack --mode development",
     "webpack-dev": "webpack --mode development --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
-    "test-compile": "tsc -p ./"
+    "test-compile": "tsc -p ./",
+    "package-vsix": "vsce package"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
