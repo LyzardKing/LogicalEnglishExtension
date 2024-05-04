@@ -2,7 +2,7 @@
   "name": "logical-english-extension",
   "displayName": "Logical English Extension",
   "description": "Run Logical English programs in VSCode",
-  "publisher": "LogicalEnglish",
+  "publisher": "galileos",
   "version": "0.0.2",
   "repository": {
     "type": "git",
