@@ -1,0 +1,153 @@
+the target language is: prolog.
+
+the templates are:
+
+% *a vehicle* is a *a type*.
+*a vehicle* can *an action*.
+*a vehicle* has *a color* light.
+*a vehicle* has *a property* of *a value*.
+*a vehicle* has a *a sign* sign.
+*a vehicle* is approaching *a vehicle*.
+*a vehicle* is in the junction.
+*a vehicle* is stopped.
+*a vehicle* must *an action*.
+*a vehicle* must give way to *a vehicle*.
+*a vehicle* must not *an action*.
+the distance between *a vehicle* and *a sign* is *a distance*.
+
+% Monitor
+*a vehicle* violates *a rule*.
+% *a vehicle* must pay *a fine*.
+% the penalty for *a rule* is *a fine*.
+% *a vehicle* repairs *a fine*.
+% *a vehicle* pays *a fine*.
+the speed limit is *a limit*.
+the allowed excess is *a value*.
+ 
+
+% Add the vehicle behaviour to the knowledge base.
+% What is a good/bad AV? What is a good/bad human driver?
+
+% an ambulance might need to give way, like other vehicles.
+the knowledge base traffic_rules includes:
+
+% Bad drivers can ignore the rule.
+% At the moment in LE this is a hard constraint.
+% This should be moved to the NetLogo part, to keep the log.
+a vehicle must not enter the junction if
+the vehicle has behaviour of good
+and it is not the case that
+    the vehicle can enter the junction.
+    
+a vehicle can enter the junction if
+the vehicle is of type ambulance
+and it is not the case that
+    the vehicle must give way to an other vehicle.
+
+a vehicle can enter the junction if
+the vehicle has green light
+and it is not the case that
+    the vehicle must give way to an other vehicle.
+
+a vehicle can enter the junction if
+the vehicle has yellow light
+and the vehicle is in the junction
+and it is not the case that
+    the vehicle must give way to an other vehicle.
+
+a vehicle can enter the junction if
+the vehicle has a stop sign
+and the vehicle is stopped
+and it is not the case that
+    the vehicle must give way to an other vehicle.
+
+% Determine the distance between the vehicle and the sign.
+% In particular the distance in front of the vehicle.
+% If the distance is less than 1, the vehicle must stop.
+% 1 unit of measure in the simulation = 1 patch in netlogo.
+% TODO: in LE add a thing is less than a thing.
+% a vehicle must stop if
+% the vehicle has a stop sign
+% and the distance between the vehicle and the sign is a distance
+% and the distance < 1
+% and it is not the case that
+%     the vehicle is stopped.
+
+% For now the approaching vehicle is the neighbour in the old version
+a vehicle must give way to an other vehicle if
+the other vehicle is approaching the vehicle
+and the other vehicle is of type ambulance.
+
+a vehicle must give way to an other vehicle if
+the other vehicle is approaching the vehicle
+and the other vehicle is of type pedestrian.
+
+% In this case the other vehicle approaching is the vehicle
+% moving in a different direction from the vehicle with the stop sign.
+% TODO: add the direction of the other vehicles, not just the types.
+a vehicle must give way to an other vehicle if
+the vehicle has a stop sign
+and the other vehicle is approaching the vehicle.
+
+% Helper functions
+a vehicle is stopped if
+the vehicle has speed of 0.
+
+% Monitor functions
+
+a vehicle violates entering the junction if
+the vehicle has red light
+and it is not the case that
+    the vehicle is of type ambulance
+and it is not the case that
+    the vehicle is stopped.
+
+% a vehicle must pay a fine if
+% the vehicle violates entering the junction
+% and the penalty for entering the junction is the fine.
+
+% a vehicle repairs a fine if
+% the vehicle must pay the fine
+% and the vehicle pays the fine. 
+    
+a vehicle violates speeding if
+the vehicle has speed of a speed
+and the speed limit is a limit 
+and the allowed excess is a value
+and the speed > the limit + the value
+and it is not the case that 
+    the vehicle is of type ambulance.
+    
+
+scenario ambulance is:
+123 is of type ambulance.
+
+scenario car is:
+456 is of type car.
+456 has green light.
+123 is of type ambulance.
+123 is approaching 456.
+
+scenario car_stop is:
+234 is of type car.
+234 has a stop sign.
+
+scenario monitor is:
+456 is of type car.
+456 has red light.
+
+scenario monitor_2 is:
+456 is of type ambulance.
+456 has red light.
+    
+scenario speeding is: 
+123 is of type car. 
+123 has speed of 15.
+the speed limit is 10. 
+the allowed excess is 3.
+
+query enter is:
+which vehicle can enter the junction.
+
+query violation is:
+which vehicle violates which rule.

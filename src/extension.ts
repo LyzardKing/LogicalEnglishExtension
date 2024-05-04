@@ -15,6 +15,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	let le_output = vscode.window.createOutputChannel("Logical English");
 	const swipl = await SWIPL({ arguments: ["-q"] });
 
+	//@ts-ignore
+	// vscode.window.showInformationMessage(swipl.prolog.query("member(X, [a, b, c]).").once().X);
+
 	// Check configuration
 	const pull_pack = vscode.workspace.getConfiguration().get('logicalenglish.pull_pack');
 	if (pull_pack) {
@@ -23,10 +26,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	let swipl_query: Query;
 	let answers: Array<string> = [];
-
-	// swipl.FS.writeFile("/logicalenglish-0.0.4.zip", (await vscode.workspace.fs.readFile(vscode.Uri.file(context.asAbsolutePath("logicalenglish-0.0.4.zip")))).toString())	
-	// let swipl_query: Query = undefined;
-	// vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
 
 
 	// The command has been defined in the package.json file
@@ -86,7 +85,7 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 				parse_output(JSON.parse(answer), 0, le_output);
 				le_output.append("\n");
 				le_output.show(true);
-			} catch(error) {
+			} catch (error) {
 				console.log("Reset answer list");
 				answers = [];
 				vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', false);
@@ -158,21 +157,21 @@ function get_scenarios(editor: vscode.TextEditor, fileExt: string) {
 	return result;
 }
 
-async function set_library() {
-	let library = "library(le_answer)";
-	if (vscode.workspace.workspaceFolders === undefined) {
-		console.log("ERROR");
-		return;
-	}
-	try {
-		let path = vscode.workspace.workspaceFolders[0].uri.path + "/le_answer.pl";
-		await vscode.workspace.fs.stat(vscode.Uri.file(path));
-		console.log("Using Local version ...");
-		library = `\'${path}\'`;
-	} finally {
-		return library;
-	}
-}
+// async function set_library() {
+// 	let library = "library(le_answer)";
+// 	if (vscode.workspace.workspaceFolders === undefined) {
+// 		console.log("ERROR");
+// 		return;
+// 	}
+// 	try {
+// 		let path = vscode.workspace.workspaceFolders[0].uri.path + "/le_answer.pl";
+// 		await vscode.workspace.fs.stat(vscode.Uri.file(path));
+// 		console.log("Using Local version ...");
+// 		library = `\'${path}\'`;
+// 	} finally {
+// 		return library;
+// 	}
+// }
 
 function parse_output(output: any[], intent: number, le_output: vscode.OutputChannel) {
 	// return convert(output.toString(), {}).replace(/(^| )\* /gm, "$1  ").replace(/and\n\s+/gm, "and ") + "\n\n";
@@ -199,27 +198,26 @@ async function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModu
 	swipl.FS.mkdir("logicalenglish/prolog/spacy");
 	swipl.FS.mkdir("logicalenglish/prolog/tokenize");
 	swipl.FS.mkdir("logicalenglish/prolog/tokenize/prolog");
-	// const files = await vscode.workspace.findFiles("**/logicalenglish-0.0.4/**");
 	const files = [`logicalenglish/pack.pl`,
-					`logicalenglish/README.md`,
-					`logicalenglish/LICENSE.txt`,
-					`logicalenglish/prolog/le_local.pl`,
-					`logicalenglish/prolog/le_answer.pl`,
-					`logicalenglish/prolog/api.pl`,
-					`logicalenglish/prolog/le_input.pl`,
-					`logicalenglish/prolog/spacy/spacy.pl`,
-					`logicalenglish/prolog/kp_loader.pl`,
-					`logicalenglish/prolog/reasoner.pl`,
-					`logicalenglish/prolog/syntax.pl`,
-					`logicalenglish/prolog/drafter.pl`,
-					`logicalenglish/prolog/tokenize/prolog/tokenize.pl`,
-					`logicalenglish/prolog/tokenize/prolog/tokenize_opts.pl`]
+		`logicalenglish/README.md`,
+		`logicalenglish/LICENSE.txt`,
+		`logicalenglish/prolog/le_local.pl`,
+		`logicalenglish/prolog/le_answer.pl`,
+		`logicalenglish/prolog/api.pl`,
+		`logicalenglish/prolog/le_input.pl`,
+		`logicalenglish/prolog/spacy/spacy.pl`,
+		`logicalenglish/prolog/kp_loader.pl`,
+		`logicalenglish/prolog/reasoner.pl`,
+		`logicalenglish/prolog/syntax.pl`,
+		`logicalenglish/prolog/drafter.pl`,
+		`logicalenglish/prolog/tokenize/prolog/tokenize.pl`,
+		`logicalenglish/prolog/tokenize/prolog/tokenize_opts.pl`]
 	console.log(files);
 	files.forEach(async (file) => {
 		// var path = file.toString().replace(/.*logicalenglish-0\.0\.4\//gm, '');
 		// console.log(path);
-		// var content = await vscode.workspace.fs.readFile(file);
-		// console.log(content);
-		swipl.FS.writeFile(file, await vscode.workspace.fs.readFile(vscode.Uri.file(context.asAbsolutePath('logicalenglish-0.4.4/' + file))));
+		var content = await vscode.workspace.fs.readFile(vscode.Uri.file(context.asAbsolutePath('logicalenglish-0.0.4/' + file)));
+		// vscode.window.showInformationMessage(content.toString());
+		swipl.FS.writeFile(file, await vscode.workspace.fs.readFile(vscode.Uri.file(context.asAbsolutePath('logicalenglish-0.0.4/' + file))));
 	});
 }

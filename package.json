@@ -1,7 +1,8 @@
 {
   "name": "logical-english-extension",
   "displayName": "Logical English Extension",
-  "description": "",
+  "description": "Run Logical English programs in VSCode",
+  "publisher": "LogicalEnglish",
   "version": "0.0.1",
   "repository": {
     "type": "git",
@@ -11,7 +12,8 @@
     "vscode": "^1.88.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Language Packs"
   ],
   "activationEvents": [
     "onLanguage:logical-english"
@@ -50,7 +52,7 @@
       },
       {
         "command": "logical-english-extension.show-prolog",
-        "title": "Shoe Prolog - Logical English",
+        "title": "Show Prolog - Logical English",
         "icon": "$(debug)"
       }
     ],
@@ -90,7 +92,12 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package": "vsce package",
+    "compile-web": "webpack",
+    "watch-web": "webpack --watch",
+    "package-web": "webpack --mode production --devtool hidden-source-map",
+    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
@@ -100,12 +107,21 @@
     "@typescript-eslint/parser": "^7.4.0",
     "@vscode/test-cli": "^0.0.8",
     "@vscode/test-electron": "^2.3.9",
+    "@vscode/test-web": "^0.0.54",
     "@vscode/vsce": "^2.26.0",
     "eslint": "^8.57.0",
+    "ts-loader": "^9.5.1",
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "swipl-stdio": "^1.0.4",
-    "swipl-wasm": "^3.7.9"
+    "browserify-fs": "^1.0.0",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.0",
+    "path-browserify": "^1.0.1",
+    "readable-stream": "^4.5.2",
+    "swipl-wasm": "^3.7.10",
+    "util": "^0.12.5",
+    "vm-browserify": "^1.1.2",
+    "webpack": "^5.91.0"
   }
 }
