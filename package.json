@@ -87,17 +87,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "vscode-test",
-    "package": "vsce package",
-    "compile-web": "webpack",
-    "watch-web": "webpack --watch",
-    "package-web": "webpack --mode production --devtool hidden-source-map",
-    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
+    "vscode:prepublish": "npm run package",
+    "webpack": "webpack --mode development",
+    "webpack-dev": "webpack --mode development --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "test-compile": "tsc -p ./"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
@@ -111,7 +105,9 @@
     "@vscode/vsce": "^2.26.0",
     "eslint": "^8.57.0",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "browserify-fs": "^1.0.0",
@@ -121,7 +117,6 @@
     "readable-stream": "^4.5.2",
     "swipl-wasm": "^3.7.10",
     "util": "^0.12.5",
-    "vm-browserify": "^1.1.2",
-    "webpack": "^5.91.0"
+    "vm-browserify": "^1.1.2"
   }
 }
