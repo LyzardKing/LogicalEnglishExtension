@@ -42,7 +42,9 @@ limitations under the License.
 
 :- use_module(library(prolog_xref)).
 :- use_module(library(prolog_colour)).
-% :- use_module(library(pengines)).
+:- if(exists_source(library(pengines))).
+:- use_module(library(pengines)).
+:- endif.
 
 
 :- if(current_module(swish)). 

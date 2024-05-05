@@ -19,6 +19,7 @@
     "onLanguage:logical-english"
   ],
   "main": "./out/extension.js",
+  "browser": "./out/extension.js",
   "contributes": {
     "languages": [
       {
@@ -92,7 +93,8 @@
     "webpack-dev": "webpack --mode development --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
     "test-compile": "tsc -p ./",
-    "package-vsix": "vsce package"
+    "package-vsix": "vsce package",
+    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
