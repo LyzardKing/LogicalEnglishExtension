@@ -61,7 +61,7 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 			// engine.close();
 			vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
 			let output = await swipl_query.next();
-			le_output.appendLine(`# Answer ${query} with ${scenario}\n`);
+			le_output.appendLine(`% Answer ${query} with ${scenario}\n`);
 			// @ts-ignore
 			const answer = output.value.Answer;
 			answers.push(answer.v.replace(/_\d+/gm, 'tmp'));
@@ -114,7 +114,7 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 consult('/logicalenglish/prolog/le_answer.pl'),
 parse_and_query_and_explanation('${module}', en("${content}"), ${query}, with(${scenario}), _),
 with_output_to(string(R), show(prolog)).`).once();
-			le_output.appendLine("# Show prolog for " + module + "\n");
+			le_output.appendLine("% Show prolog for " + module + "\n");
 			//@ts-ignore
 			le_output.appendLine(output.R);
 			le_output.show(true);
