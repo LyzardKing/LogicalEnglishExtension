@@ -117,7 +117,6 @@ and the allowed excess is a value
 and the speed > the limit + the value
 and it is not the case that 
     the vehicle is of type ambulance.
-    
 
 scenario ambulance is:
 123 is of type ambulance.

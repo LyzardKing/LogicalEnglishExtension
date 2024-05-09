@@ -37,12 +37,11 @@ export async function activate(context: vscode.ExtensionContext) {
 			if (!editor) {
 				return;
 			}
-			const filename = editor.document.uri.fsPath;
+			const filename = editor.document.uri.path;
 			var fileExt = filename.split('.').pop();
 			if (fileExt !== "le" && fileExt !== "pl") {
 				return;
 			}
-			// Set module with .split("/").pop()?
 			const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
 			const content = editor.document.getText();
 			const queries = get_queries(editor, fileExt);
@@ -99,7 +98,7 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 			if (!editor) {
 				return;
 			}
-			const filename = editor.document.uri.fsPath;
+			const filename = editor.document.uri.path;
 			var fileExt = filename.split('.').pop();
 			if (fileExt !== "le" && fileExt !== "pl") {
 				return;
@@ -214,8 +213,10 @@ async function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModu
 		`logicalenglish/prolog/tokenize/prolog/tokenize_opts.pl`]
 	console.log(files);
 	files.forEach(async (file) => {
-		// console.log(path);
-		var content = await vscode.workspace.fs.readFile(vscode.Uri.file(context.asAbsolutePath(file)));
+		console.log(file);
+		var content = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/")));
+			//vscode.Uri.file(context.asAbsolutePath(file)));
+		// var content = await vscode.workspace.fs.readFile(vscode.Uri.file(vscode.workspace.asRelativePath(file)));
 		// vscode.window.showInformationMessage(content.toString());
 		swipl.FS.writeFile(file, content);
 	});

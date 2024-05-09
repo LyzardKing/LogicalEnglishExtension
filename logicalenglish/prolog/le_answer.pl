@@ -69,7 +69,7 @@ which can be used on the new command interface of LE on SWISH
 
 :- use_module('le_input.pl').  
 :- use_module('syntax.pl').
-:- if(not(current_module(wasm))).
+:- if(\+current_module(wasm)).
 :- use_module('api.pl'). 
 :-endif.
 :- use_module('reasoner.pl'). 

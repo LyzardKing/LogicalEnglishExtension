@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Logical English",
+  "name": "Italiano Logico",
   "patterns": [
     {
       "include": "#keywords"
@@ -47,7 +47,7 @@
       "patterns": [
         {
           "name": "keyword.control.logical-english",
-          "match": "(\\bit is the case that\\b|\\bit is not the case that\\b|^\\s*if\\b|\\bif\\s*$|^\\s*and\\b|\\band\\s*$|^\\s*or\\b|\\bor\\s*$|^\\s*because\\b|\\because\\s*$|\\s+that\\s+)"
+          "match": "(\\brisulta che\\b|\\bnon risulta che\\b|^\\s*se\\b|\\bse\\s*$|^\\s*e\\b|\\be\\s*$|^\\s*o\\b|\\bo\\s*$|^\\s*perché\\b|\\perché\\s*$|\\s+che\\s+)"
         }
       ]
     },
@@ -61,7 +61,7 @@
       }
     },
     "type-hierarchy-headers": {
-      "match": "^(\\s*)(the type hierarchy is)(:)(\\s*)$",
+      "match": "^(\\s*)(l'ontologia è is)(:)(\\s*)$",
       "name": "entity.type-hierarchy.logical-english",
       "captures": {
         "2": {
@@ -73,7 +73,7 @@
       }
     },
     "template-headers": {
-      "match": "^(\\s*)(the templates are)(:)(\\s*)$",
+      "match": "^(\\s*)(i modelli sono)(:)(\\s*)$",
       "name": "entity.template.logical-english",
       "captures": {
         "2": {
@@ -85,7 +85,7 @@
       }
     },
     "language-headers": {
-      "match": "^(\\s*)(the target language is)(:)([\\w|\\s]+)\\.(\\s*)$",
+      "match": "^(\\s*)(il linguaggio destinazione è)(:)([\\w|\\s]+)\\.(\\s*)$",
       "name": "entity.language.logical-english",
       "captures": {
         "2": {
@@ -97,7 +97,7 @@
       }
     },
     "knowledge-base-headers": {
-      "match": "^(\\s*)(the knowledge base) ([\\w|\\s]*)(includes)(:\\s*$)",
+      "match": "^(\\s*)(la base di conoscenza) ([\\w|\\s]*)(include)(:\\s*$)",
       "name": "entity.knowledge-base.logical-english",
       "captures": {
         "2": {
@@ -112,7 +112,7 @@
       }
     },
     "scenario-headers": {
-      "match": "^(\\s*)(scenario) ([\\w|\\s]+) (is)(:\\s*$)",
+      "match": "^(\\s*)(scenario) ([\\w|\\s]+) (è)(:\\s*$)",
       "name": "entity.scenario.logical-english",
       "captures": {
         "2": {
@@ -127,7 +127,7 @@
       }
     },
     "query-headers": {
-      "match": "^(\\s*)(query) ([\\w|\\s]+) (is)(:\\s*$)",
+      "match": "^(\\s*)(domanda) ([\\w|\\s]+) (è)(:\\s*$)",
       "name": "entity.query.logical-english",
       "captures": {
         "2": {
@@ -142,7 +142,7 @@
       }
     },
     "template-types": {
-      "match": "(\\*)(\\s*an? \\w[\\s\\w]*)(\\*)",
+      "match": "(\\*)(\\s*un[oa]? \\w[\\s\\w]*)(\\*)",
       "name": "entity.type.template.logical-english",
       "captures": {
         "1": {
@@ -157,9 +157,9 @@
       }
     },
     "predefined-constants": {
-      "match": "\\b(unknown)\\b",
+      "match": "\\b(sconosciut.)\\b",
       "name": "variable.special.predefined.logical-english"
     }
   },
-  "scopeName": "source.logical-english"
+  "scopeName": "source.logical-english.italiano"
 }

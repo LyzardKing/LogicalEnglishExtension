@@ -3,7 +3,7 @@
   "displayName": "Logical English Extension",
   "description": "Run Logical English programs in VSCode",
   "publisher": "galileos",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/LyzardKing/LogicalEnglishExtension.git"
@@ -14,9 +14,6 @@
   "categories": [
     "Programming Languages",
     "Language Packs"
-  ],
-  "activationEvents": [
-    "onLanguage:logical-english"
   ],
   "main": "./out/extension.js",
   "browser": "./out/extension.js",
@@ -29,14 +26,35 @@
         ],
         "mimetypes": [
           "text/x-code-output"
-        ]
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "logical-english.italiano",
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "prolog"
       }
     ],
     "grammars": [
       {
         "language": "logical-english",
         "scopeName": "source.logical-english",
-        "path": "./logical-english.tmLanguage.json"
+        "path": "./logical-english.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.inline.prolog": "prolog"
+        }
+      },
+      {
+        "language": "logical-english.italiano",
+        "scopeName": "source.logical-english.italiano",
+        "path": "./italiano-logico.tmLanguage.json"
+      },
+      {
+        "language": "prolog",
+        "scopeName": "source.prolog",
+        "path": "./prolog.tmLanguage.json"
       }
     ],
     "commands": [
