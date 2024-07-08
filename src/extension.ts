@@ -13,26 +13,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	//Create output channel
 	let le_output = vscode.window.createOutputChannel("Logical English");
-	const swipl = await SWIPL({ arguments: ["-q"] });
 
-	//@ts-ignore
-	// vscode.window.showInformationMessage(swipl.prolog.query("member(X, [a, b, c]).").once().X);
-
-	// Check configuration
-	const pull_pack = vscode.workspace.getConfiguration().get('logicalenglish.pull_pack');
-	if (pull_pack) {
-		await update_le_pack(context, swipl);
-	}
 
 	let swipl_query: Query;
 	let answers: Array<string> = [];
 
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.query', async () => {
+			const swipl = await SWIPL({ 
+				arguments: ["-q"], 
+				//@ts-ignore
+				preRun: [(module : SWIPLModule) => update_le_pack(context, module)]
+			});
 			const editor = vscode.window.activeTextEditor;
 			if (!editor) {
 				return;
@@ -56,8 +48,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			swipl_query = swipl.prolog.query(`
 consult('/logicalenglish/prolog/le_answer.pl'),
 parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer).`);
-			// parse_and_query_and_explanation('${module}', en(Document), ${query}, with(${scenario}), Answer).`);
-			// engine.close();
 			vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
 			let output = await swipl_query.next();
 			le_output.appendLine(`% Answer ${query} with ${scenario}\n`);
@@ -94,6 +84,11 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.show-prolog', async () => {
+			const swipl = await SWIPL({ 
+				arguments: ["-q"],
+				//@ts-ignore
+				preRun: [(module : SWIPLModule) => update_le_pack(context, module)]
+			});
 			const editor = vscode.window.activeTextEditor;
 			if (!editor) {
 				return;
@@ -103,17 +98,14 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 			if (fileExt !== "le" && fileExt !== "pl") {
 				return;
 			}
-			// Set module with .split("/").pop()?
 			const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
-			// Newer version of LE can use null, but the older pack returns false.
 			const content = editor.document.getText();
-			const query = get_queries(editor, fileExt)[0];
-			const scenario = get_scenarios(editor, fileExt)[0];
-			const output = swipl.prolog.query(`
+			const output = await swipl.prolog.query(`
 consult('/logicalenglish/prolog/le_answer.pl'),
-parse_and_query_and_explanation('${module}', en("${content}"), ${query}, with(${scenario}), _),
+parse_and_query_and_explanation('${module}', en("${content}"), null, with(null), _),
 with_output_to(string(R), show(prolog)).`).once();
 			le_output.appendLine("% Show prolog for " + module + "\n");
+			console.log(output);
 			//@ts-ignore
 			le_output.appendLine(output.R);
 			le_output.show(true);
@@ -156,22 +148,6 @@ function get_scenarios(editor: vscode.TextEditor, fileExt: string) {
 	return result;
 }
 
-// async function set_library() {
-// 	let library = "library(le_answer)";
-// 	if (vscode.workspace.workspaceFolders === undefined) {
-// 		console.log("ERROR");
-// 		return;
-// 	}
-// 	try {
-// 		let path = vscode.workspace.workspaceFolders[0].uri.path + "/le_answer.pl";
-// 		await vscode.workspace.fs.stat(vscode.Uri.file(path));
-// 		console.log("Using Local version ...");
-// 		library = `\'${path}\'`;
-// 	} finally {
-// 		return library;
-// 	}
-// }
-
 function parse_output(output: any[], intent: number, le_output: vscode.OutputChannel) {
 	// return convert(output.toString(), {}).replace(/(^| )\* /gm, "$1  ").replace(/and\n\s+/gm, "and ") + "\n\n";
 	output.map((val, index) => {
@@ -189,7 +165,7 @@ function parse_output(output: any[], intent: number, le_output: vscode.OutputCha
 	});
 }
 
-async function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
+function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
 	// console.log(await vscode.workspace.fs.readDirectory(vscode.Uri.file(folder)));
 	swipl.FS.mkdir("logicalenglish");
 	swipl.FS.mkdir("logicalenglish/prolog");
@@ -212,12 +188,10 @@ async function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModu
 		`logicalenglish/prolog/tokenize/prolog/tokenize.pl`,
 		`logicalenglish/prolog/tokenize/prolog/tokenize_opts.pl`]
 	console.log(files);
-	files.forEach(async (file) => {
+	files.forEach((file) => {
 		console.log(file);
-		var content = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/")));
-			//vscode.Uri.file(context.asAbsolutePath(file)));
-		// var content = await vscode.workspace.fs.readFile(vscode.Uri.file(vscode.workspace.asRelativePath(file)));
-		// vscode.window.showInformationMessage(content.toString());
-		swipl.FS.writeFile(file, content);
+		vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/"))).then((content) => 
+			swipl.FS.writeFile(file, content)
+		);
 	});
 }
