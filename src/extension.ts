@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.query', async () => {
-			const swipl = await SWIPL({ 
+			let swipl = await SWIPL({ 
 				arguments: ["-q"], 
 				//@ts-ignore
 				preRun: [(module : SWIPLModule) => update_le_pack(context, module)]
@@ -84,7 +84,7 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.show-prolog', async () => {
-			const swipl = await SWIPL({ 
+			let swipl = await SWIPL({ 
 				arguments: ["-q"],
 				//@ts-ignore
 				preRun: [(module : SWIPLModule) => update_le_pack(context, module)]
@@ -113,70 +113,7 @@ with_output_to(string(R), show(prolog)).`).once();
 			le_output.show(true);
 		})
 	);
-	
-		// ...existing code...
-	
-	// Function to extract templates from the document
-	function extractTemplates(document: vscode.TextDocument): string[] {
-		const text = document.getText();
-		const templatesSection = text.split("the templates are:")[1]?.split(/the knowledge base .+ includes:/)[0];
-		if (!templatesSection) {
-			return [];
-		}
-		return templatesSection.trim().split('\n').map(line => line.trim()).filter(line => line.length > 0);
-	}
-	
-	// Function to create regex patterns from templates
-	function createPatterns(templates: string[]): RegExp[] {
-		return templates.map(template => {
-			const pattern = template.replace(/\*/g, '.*');
-			return new RegExp(`^${pattern}$`);
-		});
-	}
-	
-	// Function to check syntax of a sentence against patterns
-	function checkSyntax(sentence: string, patterns: RegExp[]): boolean {
-		return patterns.some(pattern => pattern.test(sentence));
-	}
-	
-	// Command to check syntax
-	context.subscriptions.push(
-		vscode.commands.registerCommand('logical-english-extension.checkSyntax', async () => {
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				vscode.window.showErrorMessage("No active editor found");
-				return;
-			}
-	
-			const document = editor.document;
-			const templates = extractTemplates(document);
-			if (templates.length === 0) {
-				vscode.window.showErrorMessage("No templates found in the document");
-				return;
-			}
-	
-			const patterns = createPatterns(templates);
-			const sentence = await vscode.window.showInputBox({ prompt: "Enter a sentence to check syntax" });
-			if (!sentence) {
-				return;
-			}
-	
-			const isValid = checkSyntax(sentence, patterns);
-			if (isValid) {
-				vscode.window.showInformationMessage("The sentence is valid according to the templates");
-			} else {
-				vscode.window.showErrorMessage("The sentence does not match any template");
-			}
-		})
-	);
-	
-	// ...existing code...
 
-	// context.subscriptions.push(
-	// 	vscode.commands.registerCommand('logical-english-extension.load', async() => {
-
-	// 	})
-	// )
 }
 
 // This method is called when your extension is deactivated
