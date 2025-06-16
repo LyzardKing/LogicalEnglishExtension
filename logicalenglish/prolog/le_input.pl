@@ -121,7 +121,7 @@ query three is:
 :- use_module(library(prolog_stack)).
 :- table addExp//2, mulExp//2.
 :- thread_local text_size/1, error_notice/4, dict/3, meta_dict/3, example/2, local_dict/3, local_meta_dict/3,
-                last_nl_parsed/1, kbname/1, happens/2, initiates/3, terminates/3, is_type/1, is_/2, 
+                last_nl_parsed/1, kbname/1, happens/2, initiates/3, terminates/3, is_type/1, is_/2, is_a/2, 
                 predicates/1, events/1, fluents/1, metapredicates/1, parsed/0, source_lang/1, including/0. % just_saved_scasp/2. 
 :- discontiguous statement/3, declaration/4, _:example/2, _:query/2, _:is_/2. 
 
@@ -176,10 +176,27 @@ header(_, Rest, _) :-
     asserterror('LE error in the header ', Rest), 
     fail.
 
-fix_settings(Settings_, Settings2) :-
+fix_settings(Settings_, Settings3) :-
     %print_message(informational, "Settings: ~w"-[Settings_]),
     ( member(target(_), Settings_) -> Settings1 = Settings_ ; Settings1 = [target(taxlog)|Settings_] ), !,  % taxlog as default
-    Settings2 = [query(null, true), example(null, []), abducible(true,true)|Settings1]. % a hack to stop the loop when query is empty
+    % adding dynamic statements for all the predef_dict templates 
+    % adding special header for is_a/2
+    findall(Pred, filtered_dictionary(Pred), PH),
+    filter_repeats(PH, PredefHeaders), 
+    %print_message(informational, "Predefined Predicates ~w"-[PredefHeaders]),
+    ( member(predicates(Templates), Settings1) -> 
+        (   append(Previous, [predicates(Templates)|Rest], Settings1), % replacing predicates/1
+            append(Templates, PredefHeaders, AllTemplates), append(Previous, Rest, IncompleteSettings), 
+            Settings2 = [predicates(AllTemplates)|IncompleteSettings] )
+    ;   Settings2 = [predicates(PredefHeaders)|Settings1]
+    ),
+    Settings3 = [query(null, true), example(null, []), abducible(true,true)|Settings2]. % a hack to stop the loop when query is empty
+
+filter_repeats([], []) :- !.
+filter_repeats([H|R], RR) :- member(H,R), !,  filter_repeats(R, RR). 
+filter_repeats([H|R], [H|RR]) :- filter_repeats(R, RR). 
+
+fix_dictionary(Dict, Dict). 
 
 included_files(Settings2, RestoredDictEntries, CollectedRules) :-
     member(in_files(ModuleNames), Settings2),   % include all those files and get additional DictEntries before ordering
@@ -299,10 +316,11 @@ settings(AllR, AllS) -->
     {append(Setting, RS, AllS), append(Rules, RRules, AllR)}, !.
 settings([], [], Stay, Stay) :- !, 
     ( phrase(rules_previous(_), Stay, _) ; 
+      phrase(ontology_, Stay, _)  ;  
       phrase(scenario_, Stay, _)  ;  
       phrase(query_, Stay, _) ;
       phrase(the_plots_are_, Stay, _) ).  
-    % settings ending with the start of the knowledge base or scenarios or queries. 
+    % settings ending with the start of the knowledge base or ontology or scenarios or queries. 
 settings(_, _, Rest, _) :- 
     asserterror('LE error in the declarations on or before ', Rest), 
     fail.
@@ -313,20 +331,20 @@ settings([], [], Stay, Stay).
 content(T) --> %{print_message(informational, "going for KB:"-[])},  
     spaces_or_newlines(_), rules_previous(Kbname), %{print_message(informational, "KBName: ~w"-[Kbname])}, 
     kbase_content(S),  %{print_message(informational, "KB: ~w"-[S])}, 
-    content(R), 
-    {append([kbname(Kbname)|S], R, T)}, !.
+    content(R),  {append([kbname(Kbname)|S], R, T)}, !.
+content(T) --> %{print_message(informational, "going for the ontology:"-[])},
+    spaces_or_newlines(_), ontology_content(S),  %{print_message(informational, "ontology: ~w"-[S])},
+    content(R), {append(S, R, T)}, !.
+% the annexes to the contract are:
+content(T) --> %{print_message(informational, "going for the annexes:"-[])},
+    spaces_or_newlines(_), annexes_content(S),  %{print_message(informational, "annexes: ~w"-[S])},
+    content(R), {append(S, R, T)}, !.
 content(T) --> %{print_message(informational, "going for scenario:"-[])},
     spaces_or_newlines(_), scenario_content(S),  %{print_message(informational, "scenario: ~w"-[S])},
-    content(R), 
-    {append(S, R, T)}, !.
+    content(R), {append(S, R, T)}, !.
 content(T) --> %{print_message(informational, "going for query:"-[])},
-    spaces_or_newlines(_), query_content(S),  content(R), 
-    {append(S, R, T)}, !.
-content(T) --> 
-    spaces_or_newlines(_), plot_content(S),  content(R), 
-    {append(S, R, T)}, !.
-content([]) --> 
-    spaces_or_newlines(_). 
+    spaces_or_newlines(_), query_content(S),  content(R), {append(S, R, T)}, !.
+content([]) --> spaces_or_newlines(_).
 content(_, Rest, _) :- 
     asserterror('LE error in the content ', Rest), 
     fail.
@@ -471,6 +489,9 @@ next_section(StopHere, StopHere)  :-
     phrase(files_to_include_previous(_), StopHere, _), !.
 
 next_section(StopHere, StopHere)  :-
+    phrase(ontology_, StopHere, _), !.
+
+next_section(StopHere, StopHere)  :-
     phrase(rules_previous(_), StopHere, _), !. % format(string(Message), "Next knowledge base", []), print_message(informational, Message).
 
 next_section(StopHere, StopHere)  :-
@@ -534,6 +555,35 @@ scenario_content(Scenario) --> %{print_message(informational, "starting scenario
 
 scenario_content(_,  Rest, _) :- 
     asserterror('LE error found around this scenario expression: ', Rest), fail.
+
+% ontology_content/1 or /3
+% an ontology description. All assumptions are added to the kb after verification.
+ontology_content(Ontology) --> %spypoint, %{print_message(informational, "starting scenario: "-[])},
+    ontology_previous(_Name), kbase_content(Ontology), !.  
+    % for the moment, the ontology is added directly to the kb. .
+
+ontology_content(_,  Rest, _) :- 
+    asserterror('LE error found around this ontology expression: ', Rest), fail.
+
+% ontology_previous//1
+ontology_previous(default) --> 
+    spaces_or_newlines(_), ss_([the, ontology, is, :]), spaces_or_newlines(_).
+ontology_previous(KBName) --> 
+    ontology_, [named], spaces(_), [','], extract_constant([',', is, es, est, 'è'], NameWords), [','], spaces(_), is_colon_, spaces_or_newlines(_), %{print_message(informational, " scenario: ~w"-[NameWords])},
+    {name_as_atom(NameWords, KBName)}.
+
+% annexes_content/1 or /3
+% an annexes description. All assumptions are added to the kb after verification.
+annexes_content(Annexes) --> %spypoint, %{print_message(informational, "starting scenario: "-[])},
+    annexes_previous(_Name), kbase_content(Annexes), !.  
+    % for the moment, the ontology is added directly to the kb. .
+
+annexes_content(_,  Rest, _) :- 
+    asserterror('LE error found around this annexes expression: ', Rest), fail.
+
+% annexes_previous//1
+annexes_previous(default) --> 
+    spaces_or_newlines(_), ss_([the, annexes, to, the, contract, are, :]), spaces_or_newlines(_).
 
 
 % query_content/1 or /3
@@ -1085,7 +1135,7 @@ or_ --> [ou]. % french
 
 not_ --> [it], spaces(_), [is], spaces(_), [not], spaces(_), [the], spaces(_), [case], spaces(_), [that], spaces(_). 
 not_ --> [non], spaces(_), [risulta], spaces(_), [che], spaces(_). % italian
-not_ --> [ce], spaces(_), [n],[A],[est], spaces(_), [pas], spaces(_), [le], spaces(_), [cas], spaces(_), [que], spaces(_), {atom_string(A, "'")}. % french
+not_ --> [ce], spaces(_), [n],[A],[est], spaces(_), [pas], spaces(_), [le], spaces(_), [cas], spaces(_), [que], spaces(_), {atom_string(A, "'")}. % 'french
 not_ --> [no], spaces(_), [es], spaces(_), [el], spaces(_), [caso], spaces(_), [que], spaces(_).  % spanish
 
 is_the_sum_of_each_ --> [is], spaces(_), [the], spaces(_), [sum], spaces(_), [of], spaces(_), [each], spaces(_) .
@@ -1128,13 +1178,13 @@ for_all_cases_in_which_ --> spaces_or_newlines(_), [en], spaces(_), [cualquier],
 it_is_the_case_that_ --> [it], spaces(_), [is], spaces(_), [the], spaces(_), [case], spaces(_), [that], spaces(_).
 it_is_the_case_that_ --> [es], spaces(_), [el], spaces(_), [caso], spaces(_), [que], spaces(_).  % spanish
 it_is_the_case_that_ --> [es], spaces(_), [también], spaces(_), [el], spaces(_), [caso], spaces(_), [que], spaces(_).  % spanish
-it_is_the_case_that_ --> [c], [A], [est], spaces(_), [le], spaces(_), [cas], spaces(_), [que], spaces(_), {atom_string(A, "'")}. % french
+it_is_the_case_that_ --> [c], [A], [est], spaces(_), [le], spaces(_), [cas], spaces(_), [que], spaces(_), {atom_string(A, "'")}. % 'french
 it_is_the_case_that_ --> [è], spaces(_), [provato], spaces(_), [che], spaces(_). % italian
 
 is_a_set_of_ --> [is], spaces(_), [a], spaces(_), [set], spaces(_), [of], spaces(_). 
 is_a_set_of_ --> [es], spaces(_), [un],  spaces(_), [conjunto],  spaces(_), [de], spaces(_). % spanish
 is_a_set_of_ --> [est], spaces(_), [un],  spaces(_), [ensemble],  spaces(_), [de],  spaces(_). % french
-is_a_set_of_ --> [è], spaces(_), [un],  spaces(_), [insieme],  spaces(_), [di],  spaces(_). % italian
+is_a_set_of_ --> [est], spaces(_), [un],  spaces(_), [ensemble],  spaces(_), [de],  spaces(_). % italian
 
 where_ --> [where], spaces(_). 
 where_ --> [en], spaces(_), [donde], spaces(_). % spanish
@@ -1219,6 +1269,12 @@ it_is_unknown_whether_ -->
 it_must_not_be_true_that_ --> 
     it_, [must], spaces(_), [not], spaces(_), [be], spaces(_), [true], spaces(_), [that], spaces(_).
 
+ontology_ -->  spaces_or_newlines(_), ['Ontology'], !, spaces(_).
+ontology_ -->  spaces_or_newlines(_), [ontology], spaces(_). % english 
+ontology_ -->  spaces_or_newlines(_), [the], spaces(_), [ontology], spaces(_). % english 
+ontology_ -->  spaces_or_newlines(_), ['l\''], spaces(_), [ontologie], spaces(_). % french
+ontology_ -->  spaces_or_newlines(_), [la], spaces(_), ['ontología'], spaces(_). % spanish
+
 /* --------------------------------------------------- Supporting code */
 % indentation code
 % ri/2 ri(-Conditions, +IndentedForm). 
@@ -1274,6 +1330,13 @@ c2p(or(A, RestA), (AA; RestAA)) :-
 	c2p(RestA, RestAA). 
 
 /* --------------------------------------------------- More Supporting code */
+% scape spaces ss_/3
+ss_(All, [' '|RestIn], Output) :-
+    ss_(All, RestIn, Output). 
+ss_([Word|Rest], [Word|RestIn], Output) :-
+    ss_(Rest, RestIn, Output).
+ss_([], Rin, Rout) :- spaces(_, Rin, Rout). 
+
 clean_comments([], []) :- !.
 clean_comments(['%'|Rest], New) :- % like in prolog comments start with %
     jump_comment(Rest, Next), 
@@ -2361,6 +2424,7 @@ meta_dictionary(Predicate, VariablesNames, Template) :-
 :- discontiguous predef_meta_dict/3.
 predef_meta_dict([\=, T1, T2], [first_thing-time, second_thing-time], [T1, is, different, from, T2]).
 predef_meta_dict([=, T1, T2], [first_thing-time, second_thing-time], [T1, is, equal, to, T2]).
+predef_meta_dict([nonvar, T1], [thing_1-thing], [T1, is, known]). % is it instantiated?
 
 % dictionary(?LiteralElements, ?NamesAndTypes, ?Template)
 % this is a multimodal predicate used to associate a Template with its particular other of the words for LE
@@ -2411,47 +2475,61 @@ dictionary(Predicate, VariablesNames, Template) :- % dict(Predicate, VariablesNa
 % predef_dict([is_individual_or_company_on, A, B],
 %                    [affiliate-affiliate, date-date],
 %                    [A, is, an, individual, or, is, a, company, at, B]).
+predef_dict([has_affiliated_with_at, _A, B, C], [entity-entity, affiliate-affiliate, date-date], [who, affiliated, with, B, at, C]).
+predef_dict([has_affiliated_with_at, _A, B, C], [entity-entity, affiliate-affiliate, date-date], [what, entity, affiliated, with, B, at, C]).
+predef_dict([has_affiliated_with_at, A, B, _C], [entity-entity, affiliate-affiliate, date-date], [when, did, A, affiliate, with, B]).
+%predef_dict([has_affiliated_with_at, B, _A, C], [affiliate-affiliate, entity-entity, date-date], [which, entity, did, B, affiliate, with, at, C]).
+predef_dict([has_affiliated_with_at, A, B, _C], [entity-entity, affiliate-affiliate, date-date], [on, what, date, did, A, affiliate, with, B]).
+predef_dict([has_affiliated_with_at, A, B, _C], [entity-entity, affiliate-affiliate, date-date], [is, there, an, affiliation, between, A, and, B]).
+predef_dict([has_affiliated_with_at, A, B, _C], [entity-entity, affiliate-affiliate, date-date], [when, did, the, affiliation, between, A, and, B, begin]).
+% general predefinitions
+predef_dict([is_of_type, Object, Type], [object-object, type-type], [Object, is, of, type, Type]). % predefining is a
+predef_dict([is_a, Object, Type], [object-object, type-type], [Object, is, an, Type]). % predefining is a
+predef_dict([is_a, Object, Type], [object-object, type-type], [Object, is, a, Type]). % predefining is a
+predef_dict([is_a, Object, Type], [object-object, type-type], [Object, is, of, Type]).
+
 % % Prolog
-predef_dict([length, List, Length], [member-object, list-list], [the, length, of, List, is, Length]).
-predef_dict([bagof, Thing, Condition, Bag], [bag-thing, thing-thing, condition-condition], [Bag, is, a, bag, of, Thing, such, that, Condition]).
-predef_dict([has_as_head_before, A, B, C], [list-list, symbol-term, rest_of_list-list], [A, has, B, as, head, before, C]).
-predef_dict([append, A, B, C],[first_list-list, second_list-list, third_list-list], [appending, A, then, B, gives, C]).
-predef_dict([reverse, A, B], [list-list, other_list-list], [A, is, the, reverse, of, B]).
-predef_dict([same_date, T1, T2], [time_1-time, time_2-time], [T1, is, the, same, date, as, T2]). % see reasoner.pl before/2
-predef_dict([between,Minimum,Maximum,Middle], [min-date, max-date, middle-date], 
+predef_dict(A,B,C) :- prolog_predef_dict(A,B,C).
+
+prolog_predef_dict([length, List, Length], [member-object, list-list], [the, length, of, List, is, Length]).
+prolog_predef_dict([bagof, Thing, Condition, Bag], [bag-thing, thing-thing, condition-condition], [Bag, is, a, bag, of, Thing, such, that, Condition]).
+prolog_predef_dict([has_as_head_before, A, B, C], [list-list, symbol-term, rest_of_list-list], [A, has, B, as, head, before, C]).
+prolog_predef_dict([append, A, B, C],[first_list-list, second_list-list, third_list-list], [appending, A, then, B, gives, C]).
+prolog_predef_dict([reverse, A, B], [list-list, other_list-list], [A, is, the, reverse, of, B]).
+prolog_predef_dict([same_date, T1, T2], [time_1-time, time_2-time], [T1, is, the, same, date, as, T2]). % see reasoner.pl before/2
+prolog_predef_dict([between,Minimum,Maximum,Middle], [min-date, max-date, middle-date], 
                 [Middle, is, between, Minimum, &, Maximum]).
-predef_dict([is_1_day_after, A, B], [date-date, second_date-date],
+prolog_predef_dict([is_1_day_after, A, B], [date-date, second_date-date],
                 [A, is, '1', day, after, B]).
-predef_dict([is_days_after, A, B, C], [date-date, number-number, second_date-date],
+prolog_predef_dict([is_days_after, A, B, C], [date-date, number-number, second_date-date],
                   [A, is, B, days, after, C]).
-predef_dict([immediately_before, T1, T2], [time_1-time, time_2-time], [T1, is, immediately, before, T2]). % see reasoner.pl before/2
-predef_dict([\=, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, different, from, T2]).
-predef_dict([==, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, equivalent, to, T2]).
-predef_dict([is_a, Object, Type], [object-object, type-type], [Object, is, of, type, Type]).
-predef_dict([is_not_before, T1, T2], [time1-time, time2-time], [T1, is, not, before, T2]). % see reasoner.pl before/2
-predef_dict([=, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, equal, to, T2]).
-predef_dict([isbefore, T1, T2], [time1-time, time2-time], [T1, is, before, T2]). % see reasoner.pl before/2
-predef_dict([isafter, T1, T2], [time1-time, time2-time], [T1, is, after, T2]).  % see reasoner.pl before/2
-predef_dict([member, Member, List], [member-object, list-list], [Member, is, in, List]).
-%predef_dict([is_, A, B], [term-term, expression-expression], [A, is, B]). % builtin Prolog assignment
-predef_dict([=, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, T2]). % builtin Prolog assignment
+prolog_predef_dict([immediately_before, T1, T2], [time_1-time, time_2-time], [T1, is, immediately, before, T2]). % see reasoner.pl before/2
+prolog_predef_dict([\=, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, different, from, T2]).
+prolog_predef_dict([==, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, equivalent, to, T2]).
+prolog_predef_dict([is_not_before, T1, T2], [time1-time, time2-time], [T1, is, not, before, T2]). % see reasoner.pl before/2
+prolog_predef_dict([=, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, equal, to, T2]).
+prolog_predef_dict([<, T1, T2], [time1-time, time2-time], [T1, is, before, T2]). 
+prolog_predef_dict([>, T1, T2], [time1-time, time2-time], [T1, is, after, T2]).  
+prolog_predef_dict([member, Member, List], [member-object, list-list], [Member, is, in, List]).
+%prolog_predef_dict([is_, A, B], [term-term, expression-expression], [A, is, B]). % builtin Prolog assignment
+prolog_predef_dict([nonvar, T1], [thing_1-thing], [T1, is, known]). % is it instantiated?
+prolog_predef_dict([=, T1, T2], [thing_1-thing, thing_2-thing], [T1, is, T2]). % builtin Prolog assignment
 % predefined entries:
-%predef_dict([assert,Information], [info-clause], [this, information, Information, ' has', been, recorded]).
-predef_dict([\=@=, T1, T2], [thing_1-thing, thing_2-thing], [T1, \,=,@,=, T2]).
-predef_dict([\==, T1, T2], [thing_1-thing, thing_2-thing], [T1, \,=,=, T2]).
-predef_dict([=\=, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,\,=, T2]).
-predef_dict([=@=, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,@,=, T2]).
-predef_dict([=:=, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,:,=, T2]).
-predef_dict([==, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,=, T2]).
-predef_dict([=<, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,<, T2]).
-predef_dict([=<, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,<, T2]).
-predef_dict([>=, T1, T2], [thing_1-thing, thing_2-thing], [T1, >,=, T2]).
-predef_dict([is, T1, T2], [thing_1-thing, thing_2-thing], [T1, =, T2]).
-predef_dict([<, T1, T2], [thing_1-thing, thing_2-thing], [T1, <, T2]).
-predef_dict([>, T1, T2], [thing_1-thing, thing_2-thing], [T1, >, T2]).
-predef_dict([unparse_time, Secs, Date], [secs-time, date-date], [Secs, corresponds, to, date, Date]).
-% predef_dict([must_be, Type, Term], [type-type, term-term], [Term, must, be, Type]).
-% predef_dict([must_not_be, A, B], [term-term, variable-variable], [A, must, not, be, B]). 
+%prolog_predef_dict([assert,Information], [info-clause], [this, information, Information, ' has', been, recorded]).
+prolog_predef_dict([\=@=, T1, T2], [thing_1-thing, thing_2-thing], [T1, \,=,@,=, T2]).
+prolog_predef_dict([\==, T1, T2], [thing_1-thing, thing_2-thing], [T1, \,=,=, T2]).
+prolog_predef_dict([=\=, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,\,=, T2]).
+prolog_predef_dict([=@=, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,@,=, T2]).
+prolog_predef_dict([==, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,=, T2]).
+prolog_predef_dict([=<, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,<, T2]).
+prolog_predef_dict([=<, T1, T2], [thing_1-thing, thing_2-thing], [T1, =,<, T2]).
+prolog_predef_dict([>=, T1, T2], [thing_1-thing, thing_2-thing], [T1, >,=, T2]).
+prolog_predef_dict([is, T1, T2], [thing_1-thing, thing_2-thing], [T1, =, T2]).
+prolog_predef_dict([<, T1, T2], [thing_1-thing, thing_2-thing], [T1, <, T2]).
+prolog_predef_dict([>, T1, T2], [thing_1-thing, thing_2-thing], [T1, >, T2]).
+prolog_predef_dict([unparse_time, Secs, Date], [secs-time, date-date], [Secs, corresponds, to, date, Date]).
+% prolog_predef_dict([must_be, Type, Term], [type-type, term-term], [Term, must, be, Type]).
+% prolog_predef_dict([must_not_be, A, B], [term-term, variable-variable], [A, must, not, be, B]). 
 
 % pre_is_type/1
 pre_is_type(thing).
@@ -2496,6 +2574,12 @@ proper_det(105, an) :- !.
 proper_det(111, an) :- !.
 proper_det(117, an) :- !.
 proper_det(_, a). 
+
+filtered_dictionary(Pred) :-
+    dictionary(PredicateElements, _, _),  
+    PredicateElements\=[], 
+    not(le_input:prolog_predef_dict(PredicateElements, _, _)),  % not among the built ins. 
+    Pred=..PredicateElements.
 
 % ---------------------------------------------------------------- sandbox
 

@@ -9,8 +9,8 @@ the templates are:
 *a vehicle* has a *a sign* sign.
 *a vehicle* is approaching *a vehicle*.
 *a vehicle* is in the junction.
-*a vehicle* is stopped.
-*a vehicle* must *an action*.
+% *a vehicle* is stopped.
+% *a vehicle* must *an action*.
 *a vehicle* must give way to *a vehicle*.
 *a vehicle* must not *an action*.
 the distance between *a vehicle* and *a sign* is *a distance*.
@@ -23,7 +23,8 @@ the distance between *a vehicle* and *a sign* is *a distance*.
 % *a vehicle* pays *a fine*.
 the speed limit is *a limit*.
 the allowed excess is *a value*.
- 
+ %the a property* > the limit + the value.
+
 
 % Add the vehicle behaviour to the knowledge base.
 % What is a good/bad AV? What is a good/bad human driver?
@@ -113,8 +114,8 @@ and it is not the case that
 a vehicle violates speeding if
 the vehicle has speed of a speed
 and the speed limit is a limit 
-and the allowed excess is a value
-and the speed > the limit + the value
+%and the allowed excess is a value
+%and the speed > the limit + the value
 and it is not the case that 
     the vehicle is of type ambulance.
 

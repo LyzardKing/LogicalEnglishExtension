@@ -69,8 +69,7 @@
       {
         "command": "logical-english-extension.query-next",
         "title": "Query Logical English - Next Solution",
-        "icon": "$(debug-continue)",
-        "enablement": "logical-english-extension.next-result"
+        "icon": "$(debug-continue)"
       },
       {
         "command": "logical-english-extension.show-prolog",

@@ -18,13 +18,17 @@ export async function activate(context: vscode.ExtensionContext) {
 	let swipl_query: Query;
 	let answers: Array<string> = [];
 
+	let swipl = await SWIPL({
+		arguments: ["-q"],
+		//@ts-ignore
+		preRun: [(module: SWIPLModule) => update_le_pack(context, module)],
+	});
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.query', async () => {
-			let swipl = await SWIPL({ 
-				arguments: ["-q"], 
-				//@ts-ignore
-				preRun: [(module : SWIPLModule) => update_le_pack(context, module)]
-			});
+			if (swipl_query) {
+				await swipl_query.once();
+			}
 			const editor = vscode.window.activeTextEditor;
 			if (!editor) {
 				return;
@@ -38,7 +42,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			const content = editor.document.getText();
 			const queries = get_queries(editor, fileExt);
 			const scenarios = get_scenarios(editor, fileExt);
-
 			const query = await vscode.window.showQuickPick(queries, {
 				ignoreFocusOut: true
 			});
@@ -48,12 +51,12 @@ export async function activate(context: vscode.ExtensionContext) {
 			swipl_query = swipl.prolog.query(`
 consult('/logicalenglish/prolog/le_answer.pl'),
 parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer).`);
-			vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
+			// vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
 			let output = await swipl_query.next();
 			le_output.appendLine(`% Answer ${query} with ${scenario}\n`);
 			// @ts-ignore
 			const answer = output.value.Answer;
-			answers.push(answer.v.replace(/_\d+/gm, 'tmp'));
+			// answers.push(answer.v.replace(/_\d+/gm, 'tmp'));
 			parse_output(JSON.parse(answer), 0, le_output);
 			le_output.append("\n");
 			le_output.show(true);
@@ -64,31 +67,28 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 		vscode.commands.registerCommand('logical-english-extension.query-next', async () => {
 			try {
 				let output = await swipl_query.next();
+				console.log(output);
 				// @ts-ignore
 				const answer = output.value.Answer;
-				const answer_escaped = answer.v.replace(/_\d+/gm, 'tmp');
-				if (answers.includes(answer_escaped)) {
-					throw Error;
-				}
-				answers.push(answer_escaped);
+				// const answer_escaped = answer.v.replace(/_\d+/gm, 'tmp');
+				// if (answers.includes(answer_escaped)) {
+				// 	throw Error;
+				// }
+				// answers.push(answer_escaped);
 				parse_output(JSON.parse(answer), 0, le_output);
 				le_output.append("\n");
 				le_output.show(true);
 			} catch (error) {
 				console.log("Reset answer list");
+				console.log(error);
 				answers = [];
-				vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', false);
+				// vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', false);
 			}
 		})
 	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.show-prolog', async () => {
-			let swipl = await SWIPL({ 
-				arguments: ["-q"],
-				//@ts-ignore
-				preRun: [(module : SWIPLModule) => update_le_pack(context, module)]
-			});
 			const editor = vscode.window.activeTextEditor;
 			if (!editor) {
 				return;
@@ -177,8 +177,6 @@ function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
 	swipl.FS.mkdir("logicalenglish/prolog/tokenize/prolog");
 	const files = [
 		// `logicalenglish/pack.pl`,
-		`logicalenglish/README.md`,
-		`logicalenglish/LICENSE.txt`,
 		`logicalenglish/prolog/le_local.pl`,
 		`logicalenglish/prolog/le_answer.pl`,
 		// `logicalenglish/prolog/api.pl`,
@@ -190,9 +188,9 @@ function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
 		`logicalenglish/prolog/drafter.pl`,
 		`logicalenglish/prolog/tokenize/prolog/tokenize.pl`,
 		`logicalenglish/prolog/tokenize/prolog/tokenize_opts.pl`]
-	console.log(files);
+	// console.log(files);
 	files.forEach((file) => {
-		console.log(file);
+		// console.log(file);
 		vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/"))).then((content) => 
 			swipl.FS.writeFile(file, content)
 		);
