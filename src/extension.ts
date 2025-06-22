@@ -25,6 +25,26 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(
+		vscode.window.onDidChangeActiveTextEditor(
+			load_le
+		)
+	)
+
+	context.subscriptions.push(
+		vscode.workspace.onDidSaveTextDocument(
+			load_le
+		)
+	)
+
+	async function load_le() {
+		swipl = await SWIPL({
+			arguments: ["-q"],
+			//@ts-ignore
+			preRun: [(module: SWIPLModule) => update_le_pack(context, module)],
+		});
+	}
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.query', async () => {
 			if (swipl_query) {
 				await swipl_query.once();
@@ -67,7 +87,6 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 		vscode.commands.registerCommand('logical-english-extension.query-next', async () => {
 			try {
 				let output = await swipl_query.next();
-				console.log(output);
 				// @ts-ignore
 				const answer = output.value.Answer;
 				// const answer_escaped = answer.v.replace(/_\d+/gm, 'tmp');
@@ -191,7 +210,8 @@ function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
 	// console.log(files);
 	files.forEach((file) => {
 		// console.log(file);
-		vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/"))).then((content) => 
+		// swipl.FS.writeFile(file, fs.readFileSync(file))
+		vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/"))).then((content) =>
 			swipl.FS.writeFile(file, content)
 		);
 	});
