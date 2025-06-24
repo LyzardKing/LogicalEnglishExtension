@@ -1055,9 +1055,9 @@ parse_and_query_and_explanation_text(File, Document, Question, Scenario, Answer)
     hack_module_for_taxlog(File),
     (member(target(scasp),TaxlogTerms) -> answer(Question, Scenario);
     answer( Question, Scenario, le(LE_Explanation), _Result)),    % cleaning memory
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
-        ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
-         retract(File:T))), 
+    % forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
+    %     ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
+    %      retract(File:T))), 
     produce_text_explanation(LE_Explanation, Answer). 
 
 % non_expanded_terms/2 is just as the one above, but with semantics2prolog2 instead of semantics2prolog that has many other dependencies. 

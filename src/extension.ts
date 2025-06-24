@@ -3,6 +3,150 @@
 import * as vscode from 'vscode';
 import SWIPL, { SWIPLModule, Query } from "swipl-wasm";
 
+// Encapsulate extension state in a class
+class LogicalEnglishExtension {
+	private swipl: SWIPLModule | null = null;
+	private swiplQuery: Query | null = null;
+	private leOutput = vscode.window.createOutputChannel("Logical English");
+	private context: vscode.ExtensionContext;
+
+	constructor(context: vscode.ExtensionContext) {
+		this.context = context;
+	}
+
+	async initializeSwipl(forceReload = false) {
+		if (this.swipl && !forceReload) {
+			return this.swipl;
+		}
+		this.swipl = await SWIPL({
+			arguments: ["-q"],
+			//@ts-ignore
+			preRun: [(module: SWIPLModule) => update_le_pack(this.context, module)],
+		});
+		return this.swipl;
+	}
+
+	async handleLoadLe() {
+		this.leOutput.clear();
+		this.leOutput.appendLine("Loading Logical English...");
+		await this.initializeSwipl(true);
+	}
+
+	async handleQuery() {
+		await this.initializeSwipl();
+		if (this.swiplQuery) {
+			await this.swiplQuery.once();
+		}
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) return;
+		const filename = editor.document.uri.path;
+		const fileExt = filename.split('.').pop();
+		if (fileExt !== "le" && fileExt !== "pl") return;
+		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
+		const content = editor.document.getText();
+		const queries = getQueries(editor, fileExt);
+		const scenarios = getScenarios(editor, fileExt);
+		if (queries.length === 0 || scenarios.length === 0) {
+			vscode.window.showWarningMessage("No queries or scenarios found.");
+			return;
+		}
+		const query = await vscode.window.showQuickPick(queries, { ignoreFocusOut: true });
+		const scenario = await vscode.window.showQuickPick(scenarios, { ignoreFocusOut: true });
+		if (!query || !scenario) return;
+		this.swiplQuery = this.swipl!.prolog.query(`
+consult('logicalenglish/prolog/le_answer.pl'),
+parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer).`);
+		let output = await this.swiplQuery.next();
+		this.leOutput.appendLine(`% Answer ${query} with ${scenario}\n`);
+		// @ts-ignore
+		const answer = output.value.Answer;
+		parse_output(JSON.parse(answer), 0, this.leOutput);
+		this.leOutput.append("\n");
+		this.leOutput.show(true);
+		// await vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', this.swiplQuery !== undefined);
+		vscode.commands.executeCommand('setContext', 'hasNextSolution', this.swiplQuery !== undefined);
+	}
+
+	async handleQueryNext() {
+		try {
+			if (!this.swiplQuery) return;
+			let output = await this.swiplQuery.next() as { value?: { Answer: string } };
+			if (!output || !output.value) {
+				this.leOutput.appendLine("No more answers...");
+				vscode.commands.executeCommand('setContext', 'hasNextSolution', false);
+				return;
+			}
+			const answer = output.value.Answer;
+			parse_output(JSON.parse(answer), 0, this.leOutput);
+			this.leOutput.append("\n");
+			this.leOutput.show(true);
+		} catch (error) {
+			console.log("Reset answer list");
+			console.log(error);
+		}
+	}
+
+	async handleShowProlog() {
+		await this.initializeSwipl();
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) return;
+		const filename = editor.document.uri.path;
+		const fileExt = filename.split('.').pop();
+		if (fileExt !== "le" && fileExt !== "pl") return;
+		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
+		const content = editor.document.getText();
+		const queries = getQueries(editor, fileExt);
+		const scenarios = getScenarios(editor, fileExt);
+		if (queries.length === 0 || scenarios.length === 0) {
+			vscode.window.showWarningMessage("No queries or scenarios found.");
+			return;
+		}
+		const query = queries[0];
+		const scenario = scenarios[0];
+		let output = this.swipl!.prolog.query(`
+consult('logicalenglish/prolog/le_answer.pl'),
+parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer),
+with_output_to(string(R), show(prolog)).`).once();
+		this.leOutput.appendLine("% Show prolog for " + module + "\n");
+		//@ts-ignore
+		this.leOutput.appendLine(output.value.R);
+		this.leOutput.show(true);
+	}
+
+	async watchErrorFile() {
+		// Watch for ".error.log" in the workspace root
+		// this.handleShowProlog();
+		await this.initializeSwipl();
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) return;
+		const filename = editor.document.uri.path;
+		const fileExt = filename.split('.').pop();
+		if (fileExt !== "le" && fileExt !== "pl") return;
+		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
+		const content = editor.document.getText();
+		const queries = getQueries(editor, fileExt);
+		const scenarios = getScenarios(editor, fileExt);
+		if (queries.length === 0 || scenarios.length === 0) {
+			vscode.window.showWarningMessage("No queries or scenarios found.");
+			return;
+		}
+		const query = queries[0];
+		const scenario = scenarios[0];
+
+		this.swipl!.prolog.query(`
+consult('logicalenglish/prolog/le_answer.pl'),
+parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),_).`).once();
+		let error = this.swipl!.prolog.query(`captured_message(M).`).once();
+		this.leOutput.appendLine("% Error for " + module + "\n");
+		console.log(error);
+		if (error !== undefined) {
+			// @ts-ignore
+			this.leOutput.appendLine("% Error: " + error.value.M);
+			this.leOutput.show(true);
+		}
+	}
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
@@ -11,134 +155,43 @@ export async function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "logical-english-extension" is now active!');
 
-	//Create output channel
-	let le_output = vscode.window.createOutputChannel("Logical English");
-
-
-	let swipl_query: Query;
-	let answers: Array<string> = [];
-
-	let swipl = await SWIPL({
-		arguments: ["-q"],
-		//@ts-ignore
-		preRun: [(module: SWIPLModule) => update_le_pack(context, module)],
-	});
+	const leExtension = new LogicalEnglishExtension(context);
 
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(
-			load_le
+			() => {
+				leExtension.handleLoadLe();
+				leExtension.watchErrorFile();
+			}
 		)
 	)
 
 	context.subscriptions.push(
 		vscode.workspace.onDidSaveTextDocument(
-			load_le
+			() => {
+				leExtension.handleLoadLe();
+				leExtension.watchErrorFile();
+			}
 		)
 	)
 
-	async function load_le() {
-		swipl = await SWIPL({
-			arguments: ["-q"],
-			//@ts-ignore
-			preRun: [(module: SWIPLModule) => update_le_pack(context, module)],
-		});
-	}
-
 	context.subscriptions.push(
-		vscode.commands.registerCommand('logical-english-extension.query', async () => {
-			if (swipl_query) {
-				await swipl_query.once();
-			}
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				return;
-			}
-			const filename = editor.document.uri.path;
-			var fileExt = filename.split('.').pop();
-			if (fileExt !== "le" && fileExt !== "pl") {
-				return;
-			}
-			const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
-			const content = editor.document.getText();
-			const queries = get_queries(editor, fileExt);
-			const scenarios = get_scenarios(editor, fileExt);
-			const query = await vscode.window.showQuickPick(queries, {
-				ignoreFocusOut: true
-			});
-			const scenario = await vscode.window.showQuickPick(scenarios, {
-				ignoreFocusOut: true
-			});
-			swipl_query = swipl.prolog.query(`
-consult('/logicalenglish/prolog/le_answer.pl'),
-parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer).`);
-			// vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', swipl_query !== undefined);
-			let output = await swipl_query.next();
-			le_output.appendLine(`% Answer ${query} with ${scenario}\n`);
-			// @ts-ignore
-			const answer = output.value.Answer;
-			// answers.push(answer.v.replace(/_\d+/gm, 'tmp'));
-			parse_output(JSON.parse(answer), 0, le_output);
-			le_output.append("\n");
-			le_output.show(true);
-		})
+		vscode.commands.registerCommand('logical-english-extension.query', () => leExtension.handleQuery())
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('logical-english-extension.query-next', async () => {
-			try {
-				let output = await swipl_query.next();
-				// @ts-ignore
-				const answer = output.value.Answer;
-				// const answer_escaped = answer.v.replace(/_\d+/gm, 'tmp');
-				// if (answers.includes(answer_escaped)) {
-				// 	throw Error;
-				// }
-				// answers.push(answer_escaped);
-				parse_output(JSON.parse(answer), 0, le_output);
-				le_output.append("\n");
-				le_output.show(true);
-			} catch (error) {
-				console.log("Reset answer list");
-				console.log(error);
-				answers = [];
-				// vscode.commands.executeCommand('setContext', 'logical-english-extension.next-result', false);
-			}
-		})
+		vscode.commands.registerCommand('logical-english-extension.query-next', () => leExtension.handleQueryNext())
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('logical-english-extension.show-prolog', async () => {
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				return;
-			}
-			const filename = editor.document.uri.path;
-			var fileExt = filename.split('.').pop();
-			if (fileExt !== "le" && fileExt !== "pl") {
-				return;
-			}
-			const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
-			const content = editor.document.getText();
-			const query = get_queries(editor, fileExt)[0];
-			const scenario = get_scenarios(editor, fileExt)[0];
-			const output = await swipl.prolog.query(`
-consult('/logicalenglish/prolog/le_answer.pl'),
-parse_and_query_and_explanation('${module}', en("${content}"), ${query}, with(${scenario}), _),
-with_output_to(string(R), show(prolog)).`).once();
-			le_output.appendLine("% Show prolog for " + module + "\n");
-			console.log(output);
-			//@ts-ignore
-			le_output.appendLine(output.R);
-			le_output.show(true);
-		})
+		vscode.commands.registerCommand('logical-english-extension.show-prolog', () => leExtension.handleShowProlog())
 	);
-
 }
 
 // This method is called when your extension is deactivated
 export function deactivate() { }
 
-function get_queries(editor: vscode.TextEditor, fileExt: string) {
+function getQueries(editor: vscode.TextEditor, fileExt: string) {
 	let result: string[] = [];
 	let pattern = /(?:query|domanda) (.+?) (?:is|.):/g;
 	if (fileExt === "pl") {
@@ -154,7 +207,7 @@ function get_queries(editor: vscode.TextEditor, fileExt: string) {
 	return result;
 }
 
-function get_scenarios(editor: vscode.TextEditor, fileExt: string) {
+function getScenarios(editor: vscode.TextEditor, fileExt: string) {
 	let result: string[] = [];
 	let pattern = /scenario (.+?) (?:is|.):/g;
 	if (fileExt === "pl") {
