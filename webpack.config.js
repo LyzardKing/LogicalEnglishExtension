@@ -28,21 +28,7 @@ const webExtensionConfig = {
 	resolve: {
 		mainFields: ['browser', 'module', 'main'], // look for `browser` entry point in imported node modules
 		extensions: ['.ts', '.js'], // support ts-files and js-files
-		alias: {
-			// provides alternate implementation for node module and source files
-		},
-		fallback: {
-			// Webpack 5 no longer polyfills Node.js core modules automatically.
-			// see https://webpack.js.org/configuration/resolve/#resolvefallback
-			// for the list of Node.js core module polyfills.
-			'assert': require.resolve('assert'),
-			'crypto': require.resolve('crypto-browserify'),
-			'path': require.resolve('path-browserify'),
-			'stream': require.resolve('readable-stream'),
-			'buffer': require.resolve('buffer/'),
-			'vm': require.resolve('vm-browserify'),
-			'fs': false
-		}
+		fallback: { crypto: false, fs: false, path: false, process: false }
 	},
 	module: {
 		rules: [{

@@ -19,7 +19,6 @@
     "onLanguage:logical-english"
   ],
   "main": "./out/extension.js",
-  "browser": "./out/extension.js",
   "contributes": {
     "languages": [
       {
@@ -69,7 +68,8 @@
       {
         "command": "logical-english-extension.query-next",
         "title": "Query Logical English - Next Solution",
-        "icon": "$(debug-continue)"
+        "icon": "$(debug-continue)",
+        "enablement": "hasNextSolution"
       },
       {
         "command": "logical-english-extension.show-prolog",
@@ -109,7 +109,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "webpack": "webpack --mode development",
+    "webpack": "webpack --config webpack.config.js --mode production",
     "webpack-dev": "webpack --mode development --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
     "test-compile": "tsc -p ./",
@@ -117,29 +117,22 @@
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.6",
-    "@types/node": "18.x",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
     "@types/vscode": "^1.88.0",
-    "@typescript-eslint/eslint-plugin": "^7.4.0",
-    "@typescript-eslint/parser": "^7.4.0",
-    "@vscode/test-cli": "^0.0.8",
-    "@vscode/test-electron": "^2.3.9",
-    "@vscode/test-web": "^0.0.54",
-    "@vscode/vsce": "^2.26.0",
-    "eslint": "^8.57.0",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.3.3",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4"
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/test-web": "^0.0.70",
+    "@vscode/vsce": "^3.5.0",
+    "eslint": "^9.29.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "browserify-fs": "^1.0.0",
-    "buffer": "^6.0.3",
-    "crypto-browserify": "^3.12.0",
-    "path-browserify": "^1.0.1",
-    "readable-stream": "^4.5.2",
-    "swipl-wasm": "^3.7.10",
-    "util": "^0.12.5",
-    "vm-browserify": "^1.1.2"
+    "swipl-wasm": "^5.0.11"
   }
 }

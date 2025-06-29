@@ -9,6 +9,7 @@ class LogicalEnglishExtension {
 	private swiplQuery: Query | null = null;
 	private leOutput = vscode.window.createOutputChannel("Logical English");
 	private context: vscode.ExtensionContext;
+	private content: string | null = null;
 
 	constructor(context: vscode.ExtensionContext) {
 		this.context = context;
@@ -16,13 +17,15 @@ class LogicalEnglishExtension {
 
 	async initializeSwipl(forceReload = false) {
 		if (this.swipl && !forceReload) {
+			console.log("Using existing SWIPL instance");
 			return this.swipl;
 		}
 		this.swipl = await SWIPL({
 			arguments: ["-q"],
 			//@ts-ignore
-			preRun: [(module: SWIPLModule) => update_le_pack(this.context, module)],
+			preRun: [async (module: SWIPLModule) => await update_le_pack(this.context, module)],
 		});
+		// this.swipl!.prolog.call("use_module(logicalenglish/prolog/le_answer)");
 		return this.swipl;
 	}
 
@@ -30,20 +33,34 @@ class LogicalEnglishExtension {
 		this.leOutput.clear();
 		this.leOutput.appendLine("Loading Logical English...");
 		await this.initializeSwipl(true);
+		await this.loadKB();
+	}
+
+	async loadKB() {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) return;
+		this.content = editor.document.getText();
+		//@ts-ignore
+		let parsed = await this.swipl!.prolog.query(`le_input:parsed`).once().success
+		console.log(parsed);
+		if (!parsed) {
+			await this.swipl!.prolog.call("use_module(logicalenglish/prolog/le_answer)");
+			await this.swipl!.prolog.call(`parse_and_query_and_explanation_text(cittadinanza_ita, en("${this.content}"), null, with(null), A, B).`);
+			await this.swipl!.prolog.query("le_input:parsed").once();
+		}
 	}
 
 	async handleQuery() {
 		await this.initializeSwipl();
-		if (this.swiplQuery) {
-			await this.swiplQuery.once();
-		}
+		// if (this.swiplQuery) {
+		// 	await this.swiplQuery.once();
+		// }
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) return;
 		const filename = editor.document.uri.path;
 		const fileExt = filename.split('.').pop();
 		if (fileExt !== "le" && fileExt !== "pl") return;
 		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
-		const content = editor.document.getText();
 		const queries = getQueries(editor, fileExt);
 		const scenarios = getScenarios(editor, fileExt);
 		if (queries.length === 0 || scenarios.length === 0) {
@@ -53,13 +70,16 @@ class LogicalEnglishExtension {
 		const query = await vscode.window.showQuickPick(queries, { ignoreFocusOut: true });
 		const scenario = await vscode.window.showQuickPick(scenarios, { ignoreFocusOut: true });
 		if (!query || !scenario) return;
+		await this.loadKB();
 		this.swiplQuery = this.swipl!.prolog.query(`
-consult('logicalenglish/prolog/le_answer.pl'),
-parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer).`);
+query_and_explanation_text(${query}, with(${scenario}),Answer, Result).`);
 		let output = await this.swiplQuery.next();
 		this.leOutput.appendLine(`% Answer ${query} with ${scenario}\n`);
 		// @ts-ignore
 		const answer = output.value.Answer;
+		console.log("Answer:", answer);
+		// this.leOutput.appendLine("Answer: " + answer);
+	
 		parse_output(JSON.parse(answer), 0, this.leOutput);
 		this.leOutput.append("\n");
 		this.leOutput.show(true);
@@ -88,13 +108,14 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 
 	async handleShowProlog() {
 		await this.initializeSwipl();
+		await this.loadKB();
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) return;
 		const filename = editor.document.uri.path;
 		const fileExt = filename.split('.').pop();
 		if (fileExt !== "le" && fileExt !== "pl") return;
 		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
-		const content = editor.document.getText();
+		// const content = editor.document.getText();
 		const queries = getQueries(editor, fileExt);
 		const scenarios = getScenarios(editor, fileExt);
 		if (queries.length === 0 || scenarios.length === 0) {
@@ -103,45 +124,31 @@ parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, wi
 		}
 		const query = queries[0];
 		const scenario = scenarios[0];
-		let output = this.swipl!.prolog.query(`
-consult('logicalenglish/prolog/le_answer.pl'),
-parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),Answer),
+		let output = await this.swipl!.prolog.query(`
 with_output_to(string(R), show(prolog)).`).once();
 		this.leOutput.appendLine("% Show prolog for " + module + "\n");
 		//@ts-ignore
-		this.leOutput.appendLine(output.value.R);
+		this.leOutput.appendLine(output.R);
 		this.leOutput.show(true);
 	}
 
 	async watchErrorFile() {
-		// Watch for ".error.log" in the workspace root
-		// this.handleShowProlog();
 		await this.initializeSwipl();
+		await this.loadKB();
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) return;
 		const filename = editor.document.uri.path;
 		const fileExt = filename.split('.').pop();
 		if (fileExt !== "le" && fileExt !== "pl") return;
 		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
-		const content = editor.document.getText();
-		const queries = getQueries(editor, fileExt);
-		const scenarios = getScenarios(editor, fileExt);
-		if (queries.length === 0 || scenarios.length === 0) {
-			vscode.window.showWarningMessage("No queries or scenarios found.");
-			return;
-		}
-		const query = queries[0];
-		const scenario = scenarios[0];
-
-		this.swipl!.prolog.query(`
-consult('logicalenglish/prolog/le_answer.pl'),
-parse_and_query_and_explanation_text('${module}', en("${content}"), ${query}, with(${scenario}),_).`).once();
-		let error = this.swipl!.prolog.query(`captured_message(M).`).once();
+		//@ts-ignore
+		let error = await this.swipl!.prolog.query(`
+parse_and_query_and_explanation_text('${module}', en("${this.content}"), null, with(null),_, R).`).once().R;
 		this.leOutput.appendLine("% Error for " + module + "\n");
 		console.log(error);
 		if (error !== undefined) {
 			// @ts-ignore
-			this.leOutput.appendLine("% Error: " + error.value.M);
+			this.leOutput.appendLine("% Error: " + error.value.R);
 			this.leOutput.show(true);
 		}
 	}
@@ -157,20 +164,20 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const leExtension = new LogicalEnglishExtension(context);
 
-	context.subscriptions.push(
-		vscode.window.onDidChangeActiveTextEditor(
-			() => {
-				leExtension.handleLoadLe();
-				leExtension.watchErrorFile();
-			}
-		)
-	)
+	// context.subscriptions.push(
+	// 	vscode.window.onDidChangeActiveTextEditor(
+	// 		() => {
+	// 			leExtension.handleLoadLe();
+	// 			// leExtension.watchErrorFile();
+	// 		}
+	// 	)
+	// )
 
 	context.subscriptions.push(
 		vscode.workspace.onDidSaveTextDocument(
 			() => {
 				leExtension.handleLoadLe();
-				leExtension.watchErrorFile();
+				// leExtension.watchErrorFile();
 			}
 		)
 	)
@@ -240,7 +247,7 @@ function parse_output(output: any[], intent: number, le_output: vscode.OutputCha
 	});
 }
 
-function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
+async function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
 	// console.log(await vscode.workspace.fs.readDirectory(vscode.Uri.file(folder)));
 	swipl.FS.mkdir("logicalenglish");
 	swipl.FS.mkdir("logicalenglish/prolog");
@@ -260,12 +267,9 @@ function update_le_pack(context: vscode.ExtensionContext, swipl: SWIPLModule) {
 		`logicalenglish/prolog/drafter.pl`,
 		`logicalenglish/prolog/tokenize/prolog/tokenize.pl`,
 		`logicalenglish/prolog/tokenize/prolog/tokenize_opts.pl`]
-	// console.log(files);
-	files.forEach((file) => {
-		// console.log(file);
-		// swipl.FS.writeFile(file, fs.readFileSync(file))
-		vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/"))).then((content) =>
-			swipl.FS.writeFile(file, content)
-		);
-	});
+	const promises = files.map((file) =>
+		vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...file.split("/")))
+			.then((content: any) => swipl.FS.writeFile(file, content))
+	);
+	await Promise.all(promises);
 }

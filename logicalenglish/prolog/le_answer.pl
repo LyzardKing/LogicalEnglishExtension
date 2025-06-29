@@ -33,7 +33,8 @@ which can be used on the new command interface of LE on SWISH
     op(850,xfx,user:of), % to support querying
     dump/4, dump/3, dump/2, dump_scasp/3, split_module_name/3, just_saved_scasp/2, psem/1, 
     prepare_query/6, assert_facts/2, retract_facts/2, parse_and_query/5, parse_and_query_and_explanation/6, parse_and_query_all_answers/5,
-    parse_and_query_and_explanation_text/6, le_expanded_terms/2, show/1, source_lang/1, targetBody/6
+    parse_and_query_and_explanation_text/6, le_expanded_terms/2, show/1, source_lang/1, targetBody/6,
+    query_and_explanation_text/4
     ]).
 
 %:- use_module(library(sandbox)).
@@ -1074,6 +1075,10 @@ parse_and_query_and_explanation_text(File, Document, Question, Scenario, Answer,
     % forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
     %     ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
     %      retract(File:T))), 
+    produce_text_explanation(LE_Explanation, Answer).
+
+query_and_explanation_text(Question, Scenario, Answer, Result) :-
+    answer( Question, Scenario, le(LE_Explanation), Result),
     produce_text_explanation(LE_Explanation, Answer). 
 
 % non_expanded_terms/2 is just as the one above, but with semantics2prolog2 instead of semantics2prolog that has many other dependencies. 
@@ -1162,16 +1167,17 @@ explanationLEText(s(G,_Ref,_,_,_,C),[Gs|RestTree]) :-
     %Navigator=' a rule', 
     explanationLEText(C,CH), 
     (CH\=[] -> 
-        ( RestTree =  [CH] )
+        ( RestTree = [CH] )
     ;   ( RestTree = [] )
     ),
     with_output_to(string(Gs), format('"~w"', G))
     .
-explanationLEText(u(G,_Ref,_,_,_,[]),[G]).
+explanationLEText(u(G,_Ref,_,_,_,[]),[Gs]) :-
+    with_output_to(string(Gs), format('"~w"', Generate)).
 explanationLEText(f(G,_Ref,_,_,_,C),[Gs|RestTree]) :- 
     explanationLEText(C,CH), 
     (CH\=[] -> 
-        ( RestTree =  [CH] )
+        ( RestTree = [CH] )
     ;   ( RestTree = [] )
     ),
     with_output_to(string(Gs), format('"It is not the case that: ~w"', G)).
