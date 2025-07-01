@@ -52,15 +52,11 @@ class LogicalEnglishExtension {
 
 	async handleQuery() {
 		await this.initializeSwipl();
-		// if (this.swiplQuery) {
-		// 	await this.swiplQuery.once();
-		// }
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) return;
 		const filename = editor.document.uri.path;
 		const fileExt = filename.split('.').pop();
-		if (fileExt !== "le" && fileExt !== "pl") return;
-		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
+		if (fileExt !== "le") return;
 		const queries = getQueries(editor, fileExt);
 		const scenarios = getScenarios(editor, fileExt);
 		if (queries.length === 0 || scenarios.length === 0) {
@@ -138,17 +134,17 @@ with_output_to(string(R), show(prolog)).`).once();
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) return;
 		const filename = editor.document.uri.path;
-		const fileExt = filename.split('.').pop();
-		if (fileExt !== "le" && fileExt !== "pl") return;
+		// const fileExt = filename.split('.').pop();
+		// if (fileExt !== "le" && fileExt !== "pl") return;
 		const module = filename.split("/").pop()?.replace(/\.\w+$/g, "");
 		//@ts-ignore
 		let error = await this.swipl!.prolog.query(`
-parse_and_query_and_explanation_text('${module}', en("${this.content}"), null, with(null),_, R).`).once().R;
+parse_and_query_and_explanation_text('${module}', en("${this.content}"), null, with(null), _, R).`).once().R;
 		this.leOutput.appendLine("% Error for " + module + "\n");
 		console.log(error);
 		if (error !== undefined) {
 			// @ts-ignore
-			this.leOutput.appendLine("% Error: " + error.value.R);
+			this.leOutput.appendLine("% Error: " + error);
 			this.leOutput.show(true);
 		}
 	}
@@ -164,18 +160,24 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const leExtension = new LogicalEnglishExtension(context);
 
-	// context.subscriptions.push(
-	// 	vscode.window.onDidChangeActiveTextEditor(
-	// 		() => {
-	// 			leExtension.handleLoadLe();
-	// 			// leExtension.watchErrorFile();
-	// 		}
-	// 	)
-	// )
+	context.subscriptions.push(
+		vscode.window.onDidChangeActiveTextEditor(
+			() => {
+				const editor = vscode.window.activeTextEditor;
+				const reset = editor!.document.languageId === "logical-english";
+				if (reset) {
+					leExtension.handleLoadLe();
+					// leExtension.watchErrorFile();
+				}
+			}
+		)
+	)
 
 	context.subscriptions.push(
 		vscode.workspace.onDidSaveTextDocument(
 			() => {
+				const editor = vscode.window.activeTextEditor;
+				console.log(editor);
 				leExtension.handleLoadLe();
 				// leExtension.watchErrorFile();
 			}

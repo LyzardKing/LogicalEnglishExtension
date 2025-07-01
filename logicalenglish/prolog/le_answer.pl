@@ -1170,10 +1170,9 @@ explanationLEText(s(G,_Ref,_,_,_,C),[Gs|RestTree]) :-
         ( RestTree = [CH] )
     ;   ( RestTree = [] )
     ),
-    with_output_to(string(Gs), format('"~w"', G))
-    .
+    with_output_to(string(Gs), format('"~w"', G)).
 explanationLEText(u(G,_Ref,_,_,_,[]),[Gs]) :-
-    with_output_to(string(Gs), format('"~w"', Generate)).
+    with_output_to(string(Gs), format('"~w"', G)).
 explanationLEText(f(G,_Ref,_,_,_,C),[Gs|RestTree]) :- 
     explanationLEText(C,CH), 
     (CH\=[] -> 
