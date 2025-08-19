@@ -17,7 +17,8 @@ limitations under the License.
 :- module(reasoner,[query/4, query_with_facts/5, query_once_with_facts/5, explanation_node_type/2, render_questions/2,
     run_examples/0, run_examples/1, myClause2/9, myClause/4, taxlogWrapper/10, niceModule/2, refToOrigin/2,
     isafter/2, is_not_before/2, isbefore/2, immediately_before/2, same_date/2, subtract_days/3, this_year/1, uk_tax_year/4, in/2,
-    isExpressionFunctor/1, set_time_of_day/3, start_of_day/2, end_of_day/2, is_days_after/3, is_1_day_after/2, unparse_time/2
+    isExpressionFunctor/1, set_time_of_day/3, start_of_day/2, end_of_day/2, is_days_after/3, is_1_day_after/2, unparse_time/2,
+    isafterorequal/2, isbeforeorequal/2, isafter/2, isbefore/2, is_not_before/2, has_as_head_before/3
     ]).
 
 /** <module> Tax-KB reasoner and utils
@@ -144,22 +145,22 @@ i((A;B), M, CID, Cref, U, E) :- !,
     (i(A,M,CID,Cref,U,E) ; i(B,M,CID,Cref,U,E)).
 i(must(I,M), Mod, CID, Cref, U, E) :- !, i(then(I,M), Mod, CID, Cref, U, E).
 i(\+ G,M,CID, Cref, U,E) :- !, i( not(G),M,CID,Cref,U,E).
-i(not(G), M, CID, Cref, NotU, NotE) :- !, 
+i(not(G), M, CID, Cref, NotU, NotE) :- 
     newGoalID(NotID),
     % our negation as failure requires no unknowns:
     ( i( G, M, NotID, Cref, U, E1) -> (
         assert( failed(NotID,M,CID,Cref,not(G))),
-        assert( failed_success(NotID,U,E1)),
+        assert( failed_success(NotID,U,E1)), !, 
         fail
     ) ; (
         % NotE = [f(NotID,M,CID,_NotHere_TheyAreAsserted)], NotU=[]
         (failed_success(NotID, U_, E_) -> (    
-            NotE=[s(not(G),meta,E_)], NotU = U_
+            NotE=[f(not(G),meta,E_,NotU)], NotU = U_
             % NotE = [s(NotID,M,CID, E_)], NotU=U_
             %NotU = U_, NotE=[s(NotID,M,CID,E_)], E=[f(not(G),M,meta,NotE)] %, print_message(error, "explanation ~w"-[E])
         )
-        ; (
-            NotE = [f(NotID,M,CID,_NotHere_TheyAreAsserted)], NotU=[]
+        ; ( NotE = [], NotU=[]
+            %NotE = [f(NotID,M,CID,_NotHere_TheyAreAsserted)], NotU=[]
             %NotE = [f(NotID,M,CID,_)], NotU=[],  E=[s(not(G),M,meta,NotE)] )%, print_message(error, "explanation NOT ~w"-[E]) )
     ) ) 
     ) ).
@@ -257,19 +258,19 @@ i(findall(X,G,L),M,CID,Cref,U,E) :- !,
 %     (Q_=Format-Args -> format(string(Q__),Format,Args); Q_=Q__),
 %     U=[at(Q__,M)], E=[u(at(Q__,M),M,Cref,[])].
 i(M:G,Mod,CID,Cref,U,E) :- !, i(at(G,M),Mod,CID,Cref,U,E).
-i(G, M, CID, Cref, U,E) :- not(le_answer:abducing), G = is_a(_,_), !,   % explicitly added to handle the taxonomies when not abducing them
-    % this works but does not trace:
-    % catch(call(M:G), Error, print_message(error, "The error is ~w"-[(CID, Error)])),
-    % U = [], E=[s(G,M,Cref,[])]. 
-    % this is with trace: 
-    %catch(call(M:G), Error, print_message(error, "The error is ~w"-[(CID, Error)])),
+i(G, M, CID, Cref, U,E) :- not(le_answer:abducing), G = is_a(_,_),   % explicitly added to handle the taxonomies when not abducing them
+    % recall is_a/2 is a dynamic, tabled predicated in M. see syntax.pl declare_facts_as_dynamic/2
     myCall(M:G), 
-    E = [s(G,M,Ref,ER)],   
+    E = [s(G,M,Ref,ER)],
     myClause(G,M, BodyPre,Ref),
-    not((BodyPre=(is_a(_,Y), is_a(Y,_)), var(Y))),
     %print_message(error, "ontology ~w -> ~w ref ~w"-[G, BodyPre, Ref]), 
-    i(BodyPre, M, CID, Cref, U, ER).
-i(G,M,CID,Cref,U,E) :- system_predicate(G), !, 
+    ((BodyPre=(is_a(_,Y), is_a(Y,_Z)), var(Y)) ->
+        (myCall(M:BodyPre), 
+         U = [], ER = [s(BodyPre,M,Cref,[])] 
+        ) %; 
+ %       U = [], ER = [] 
+    ;   i(BodyPre, M, CID, Cref, U, ER)).
+i(G,M,CID,Cref,U,E) :- system_predicate(G), \+ comparison_predicate(G), \+ G = is_a(_,_), !, % 
     evalArgExpressions(G,M,NewG,CID,Cref,Uargs,E_),
     % floundering originates unknown:
     catch(( myCall(M:NewG), U=Uargs, E = [s(G,M,Cref,E_)] %,print_message(informational,"The goal is ~w"-[(G, NewG, U, E)])
@@ -282,10 +283,10 @@ i(At,Mod,CID,Cref,U,E) :- At=at(G,M_),!,
     ( (psem(M_); loaded_kp(M); hypothetical_fact(M,_,_,_,_,_)) -> 
                 i(G,M,CID,Cref,U,E) ; 
                 (U=[At/c(Cref)], E=[u(At,Mod,Cref,[])] )).
-i(G,M,_CID,Cref,U,E) :- unknown(G,M), do_not_fail_undefined_preds, !, 
+i(G,M,_CID,Cref,U,E) :- \+ system_predicate(G), \+ G = is_a(_,_), unknown(G,M), do_not_fail_undefined_preds, !, 
     (U=[at(G,M)/c(Cref)],E=[ u(at(G,M),M,Cref,[]) ]).
 %TODO: on(G,2020) means "G true on some instant in 2020"; who matches that with '20210107' ? check for clauses and hypos
-i(G,M,CID,Cref,U,E) :- %trace,
+i(G,M,CID,Cref,U,E) :- \+ G = is_a(_,_), %trace,
     newGoalID(NewID), create_counter(Counter),
     LastSolutionHolder = hacky(none),
     (true ;( % before failing, save our failure information 
@@ -301,7 +302,9 @@ i(G,M,CID,Cref,U,E) :- %trace,
         fail
         )),
     evalArgExpressions(G,M,NewG,CID,Cref,Uargs,Eargs), % failures in the expression (which would be weird btw...) stay directly under CID
-    myClause(NewG,M,B,Ref,IsProlog,_URL,LocalE),
+
+    (comparison_predicate(G) -> IsProlog=true, B=G, LocalE=[s(G,M,Cref,[])] ; myClause(NewG,M,B,Ref,IsProlog,_URL,LocalE)),
+
     (IsProlog==false -> i(B,M,NewID,Ref,U_,Children_) ; (
         catch( myCall(B), error(Error,_), (U_=[at(Error,M)/c(Cref)])), % should this call be qualified with M? What when M is the SWISH module...?
         (var(U_)->U_=[];true),
@@ -550,13 +553,18 @@ expand_failure_trees([f(ID,Module,CID,Children)|Wn],U1,Un,Expanded) :-
     must_be(var,Children),
     findall(f(ChildID,M,ID,_),failed(ChildID,M,ID,_Cref,_ChildG),Children),
     expand_failure_trees(Children,U1,U2_,NewChildren_),
-    ((NewChildren_==[],failed_success(ID,SU,Why)) -> ( % no failure suspects, but we have a (last) solution:
+    ((NewChildren_==[],failed_success(ID,SU,Why), \+(( failed(ID,_,_,_,G), ground(G), G\=not(_) ))) -> ( 
+        % no failure suspects, but we have a (last) solution: consider it
         append(U2_,SU,U2__), expand_failure_trees(Why,U2__,U2,NewChildren)) 
         ; (U2_=U2, NewChildren_ = NewChildren)  
         ),
 
     expand_failure_trees(Wn,U2,Un,EWn),
-    (failed(ID,Module,CID,Cref,G) -> Expanded=[f(G,Module,Cref,NewChildren)|EWn]; append(NewChildren,EWn,Expanded)).
+    ((failed(ID,Module,CID,Cref,G), \+ (( ground(G), G\=not(_), failed_success(ID,_,_)  )) ) -> 
+        Expanded=[f(G,Module,Cref,NewChildren)|EWn]
+        ; 
+        append(NewChildren,EWn,Expanded)
+    ).
 expand_failure_trees([],U,U,[]).
 
 % simplify_explanation(+ExpandedWhy,-LeanerWhy)
@@ -667,17 +675,34 @@ nodeAttributes(at(G,K), [color=green,label=S]) :- format(string(S),"~w",G).
 
 %%%% Common background knowledge, probably to go elsewhere:
 
-%Time predicates; they assume times are atoms in iso_8601 format
+%Time predicates; they assume times are atoms in iso_8601 format or as seconds from 1970-01-01T00:00:00
 
 %!  after(+Later,+Earlier) is det.
 %   Arguments must be dates in iso_8601 format, e.g. '20210206' or '2021-02-06T08:25:34'
+%  parse_time(+TimeString,-TimeInSeconds) parses a time string in iso_8601 format, left here for completeness.
+%  it is done by the tokenizer 
 isafter(Later,Earlier) :- 
-    parse_time(Later,L), parse_time(Earlier,E), L>E.
+    parse_time(Later,L), parse_time(Earlier,E), L>E, !.  
+isafter(Later,Earlier) :- 
+    number(Later), number(Earlier), Earlier<Later.
+
+isafterorequal(Later,Earlier) :- 
+    parse_time(Later,L), parse_time(Earlier,E), L>=E, !.
+isafterorequal(Later,Earlier) :- 
+    number(Later), number(Earlier), Later>=Earlier.
+
 is_not_before(Later,Earlier) :-
-    parse_time(Later,L), parse_time(Earlier,E), L>=E.
+    parse_time(Later,L), parse_time(Earlier,E), L>=E, !.
+is_not_before(Later,Earlier) :-
+    number(Later), number(Earlier), Later>=Earlier.
+
+isbeforeorequal(Earlier,Later) :-
+    parse_time(Later,L), parse_time(Earlier,E), E=<L, !.
+isbeforeorequal(Earlier,Later) :-
+    number(Later), number(Earlier), Earlier=<Later.
+
 isbefore(Earlier,Later) :-
     parse_time(Later,L), parse_time(Earlier,E), E<L, !.
-% an argument can be any number
 isbefore(Earlier,Later) :-
     number(Later), number(Earlier), Earlier<Later.
 

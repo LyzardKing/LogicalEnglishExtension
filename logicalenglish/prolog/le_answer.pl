@@ -33,8 +33,7 @@ which can be used on the new command interface of LE on SWISH
     op(850,xfx,user:of), % to support querying
     dump/4, dump/3, dump/2, dump_scasp/3, split_module_name/3, just_saved_scasp/2, psem/1, 
     prepare_query/6, assert_facts/2, retract_facts/2, parse_and_query/5, parse_and_query_and_explanation/6, parse_and_query_all_answers/5,
-    parse_and_query_and_explanation_text/6, le_expanded_terms/2, show/1, source_lang/1, targetBody/6,
-    query_and_explanation_text/4
+    parse_and_query_and_explanation_text/6, le_expanded_terms/2, show/1, source_lang/1, targetBody/6, query_and_explanation_text/4
     ]).
 
 %:- use_module(library(sandbox)).
@@ -201,7 +200,7 @@ answer(English, Arg) :- %trace,
         retract_facts(ModuleName, Facts))
     ;   %print_message(error, "no scasp SwishModule: ~w Facts: ~w Command: ~w Goal: ~w"-[SwishModule, Facts, Command, Goal]),
         setup_call_catcher_cleanup(assert_facts(SwishModule, Facts), 
-            %listing(SwishModule:is_a/2), SwishModule:Goal), 
+            %(listing(SwishModule:is_a/2), SwishModule:Goal), 
             call(SwishModule:Goal), 
             %catch_with_backtrace(Command, Error, print_message(error, Error)), 
             %catch((true, SwishModule:Goal), Error, ( print_message(error, Error), fail ) ), 
@@ -268,29 +267,45 @@ answer(English, Arg, E, Output) :- %trace,
 
 % answer_all/3
 % answer_all(+English, with(+Scenario), -Explanations) :-
-answer_all(English, Arg, Results) :- %trace, 
-    le_input:parsed, %myDeclaredModule(Module), 
-    (psem(Module); this_capsule(Module)), 
-    translate_command(Module, English, _, Goal, PreScenario), 
-    ((Arg = with(ScenarioName), PreScenario=noscenario) -> Scenario=ScenarioName; Scenario=PreScenario), 
-    extract_goal_command(Goal, Module, InnerGoal, _Command),
-    (Scenario==noscenario -> FactsPre = [] ; Module:example(Scenario, [scenario(FactsPre, _)])), !, 
+answer_all(English, Arg, Results) :- %trace, !, 
+    pre_answer(English, Arg, FactsPre, Module, InnerGoal),
     % adding isa_a/2 connections 
     % append(FactsPre, [(is_a(A, B):-(is_a(A, C),is_a(C, B))), (reasoner:is_a(X,Y) :- is_a(X,Y))], Facts),
     % append(FactsPre, [(is_a_(X,Y):-is_a(X,Y)), (is_a(A, B):-(is_a_(A, C),is_a(C, B)))], Facts),
     append(FactsPre, [(is_a(A, B):-(is_a(A, C),is_a(C, B)))], Facts),
+    %print_message(informational, "Answering: ~w with ~w "-[English, Arg]),
     setup_call_catcher_cleanup(assert_facts(Module, Facts), 
             %catch((listing(SwishModule:is_a/2), reasoner:query(at(InnerGoal, SwishModule),Result,E,_)),             
             %catch((listing(Module:is_a/2), reasoner:query(at(InnerGoal, Module),_U,E,Result)), Error, ( print_message(error, Error), fail ) ),
             catch_with_backtrace(
                 findall(Answer, 
-                    ( reasoner:query(at(InnerGoal, Module),_U, le(LE_Explanation), Result) ,
+                    ( %listing(Module:is_a/2),
+                      reasoner:query(at(InnerGoal, Module),_U, le(LE_Explanation), Result) ,
                       produce_html_explanation(LE_Explanation, E), correct_answer(InnerGoal, E, Result, Answer) ),
                     Results), 
                 Error, 
                 ( print_message(error, Error)) ),
             _Result, 
-            retract_facts(Module, Facts)).  
+            retract_facts(Module, Facts)). 
+
+answer_all(English, Arg, [ _{answer:'Failure', explanation:E}])  :-
+    %print_message(error, "Failed to answer question: ~w"-[English]),
+    with_output_to(string(E), 
+        format("Failed to answer question: ~w : ~w", [English, Arg])), !.    
+
+% pre_answer/5
+pre_answer(English, Arg, FactsPre, Module, InnerGoal) :- !, 
+    le_input:parsed, %myDeclaredModule(Module), 
+    (psem(Module); this_capsule(Module)), %trace, 
+    %print_message(informational, "Module: ~w "-[Module]), 
+    translate_command(Module, English, _, Goal, PreScenario), 
+    %print_message(informational, "English: ~w ~w ~w"-[English, Goal, PreScenario]), 
+    ((Arg = with(ScenarioName), PreScenario=noscenario) -> Scenario=ScenarioName; Scenario=PreScenario), 
+    %print_message(informational, "Arg: ~w ~w"-[Arg, Scenario]), 
+    extract_goal_command(Goal, Module, InnerGoal, _Command),
+    %print_message(informational, "InnerGoal: ~w "-[InnerGoal]), 
+    ((Scenario==noscenario;Scenario=='') -> FactsPre = [] ; 
+        catch_with_backtrace((Module:example(Scenario, [scenario(FactsPre, _)])), Error, (print_message(error, Error), fail))). 
 
 % correct_answer/5     
 % correct_answer(InnerGoal, E, Result, Error, Answer).
@@ -298,25 +313,6 @@ correct_answer(_, E, true, _{answer:'Yes', explanation:E}) :- !.
 correct_answer(InnerGoal, E, false, _{answer:'No', explanation:E}) :-
     ground(InnerGoal), !.
 correct_answer(_InnerGoal, E, false, _{answer:'None', explanation:E}).  
-
-% prepare_query/6
-% prepare_query(+English, +Arguments, -Module, -Goal, -Facts, -Command)
-% prepare_query(English, Arg, SwishModule, Goal, Facts, Command) :- %trace, 
-%     %restore_dicts, 
-%     pengine_self(SwishModule), 
-%     (translate_command(SwishModule, English, GoalName, Goal, PreScenario) -> true 
-%     ; ( print_message(error, "Don't understand this question: ~w "-[English]), !, fail ) ), % later -->, Kbs),
-%     copy_term(Goal, CopyOfGoal),  
-%     translate_goal_into_LE(CopyOfGoal, RawGoal), name_as_atom(RawGoal, EnglishQuestion), 
-%     ((Arg = with(ScenarioName), PreScenario=noscenario) -> Scenario=ScenarioName; Scenario=PreScenario),
-%     show_question(GoalName, Scenario, EnglishQuestion), 
-%     %print_message(informational, "Scenario: ~w"-[Scenario]),
-%     (Scenario==noscenario -> Facts = [] ; 
-%         (SwishModule:example(Scenario, [scenario(Facts, _)]) -> 
-%             true;  print_message(error, "Scenario: ~w does not exist"-[Scenario]))),
-%     %print_message(informational, "Facts: ~w"-[Facts]), 
-%     extract_goal_command(Goal, SwishModule, _InnerGoal, Command), !.  
-%     %print_message(informational, "Command: ~w"-[Command]).
 
 prepare_scenario(SwishModule, Arg, PreScenario, Scenario, LocalFacts, ModuleFacts, AllFacts) :-
     % extract the name of the scenario
@@ -424,6 +420,13 @@ translate_goal_into_LE((G;R), WholeAnswer) :-
     append(['('|Answer], ['\n','\t','\t',or|PRestAnswers], WholeAnswer).
 translate_goal_into_LE(aggregate_all(sum(V),Conditions,R), [R,is,the,sum,of,each,V,such,that,'\n', '\t'|Answer]) :-
     translate_goal_into_LE(Conditions, Answer), !.
+translate_goal_into_LE(forall(Conds, Goals), ProcessedWordsAnswers) :-
+    print_message(informational, "translate_goal_into_LE: for all ~w ~w\n"-[Conds, Goals]),
+    translate_goal_into_LE(Conds, CondsWords), 
+    translate_goal_into_LE(Goals, GoalsWords), 
+    !,
+    append([for, every], CondsWords, FirstPart), 
+    append( FirstPart, [it, is, the, case, that,':'|GoalsWords], ProcessedWordsAnswers). 
 translate_goal_into_LE(not(G), [it,is,not,the,case,that,'\n', '\t'|Answer]) :- 
     translate_goal_into_LE(G, Answer), !.
 translate_goal_into_LE(is_a(A,B), ProcessedWordsAnswers) :-
@@ -467,7 +470,8 @@ starts_with_vowel(Term) :- % not needed fttb.
        member(FirstChar, ['h', 'H']), 
        member(SecondChar, ['o', 'e', 'E', 'O']))).
 
-starts_with_vowel('LLM'). 
+starts_with_vowel(Term) :-
+    atom(Term), Term='LLM'. 
 
 process_time_term(T,ExplainT) :- var(T), name_as_atom([a, time, T], ExplainT). % in case of vars
 process_time_term(T,T) :- nonvar(T), atom(T), !. 
@@ -518,21 +522,23 @@ retract_facts(_, []) :- !.
 retract_facts(SwishModule, [F|R]) :- nonvar(F),  %print_message(informational, "retracting: ~w"-[SwishModule:F]),
     retract(SwishModule:F), retract_facts(SwishModule, R). 
 
-% translate_command/1
-translate_command(SwishModule, English_String, GoalName, Goals, Scenario) :- %trace, 
+% translate_command/5
+translate_command(Module, English_String, GoalName, Goals, Scenario) :- %trace, 
     tokenize(English_String, Tokens, [cased(true), spaces(true), numbers(false)]),
     unpack_tokens(Tokens, UTokens), 
     clean_comments(UTokens, CTokens),
-    phrase(command_(GoalName, Scenario), CTokens), 
-    %print_message(informational, "GoalName ~w SwishModule ~w"-[GoalName, SwishModule]), 
-    ( SwishModule:query(GoalName, Goals) -> true; (print_message(informational, "No goal named: ~w"-[GoalName]), fail) ), !. 
+    phrase(command_(GoalName, Scenario), CTokens),  
+    %print_message(informational, "GoalName ~w Module ~w"-[GoalName, Module]), 
+    %Module:query(GoalName, Goals). 
+    catch_with_backtrace((Module:query(GoalName, Goals)), Error, (print_message(error, "No such query defined: ~w"-[Error]), fail)).  
+    %( Module:query(GoalName, Goals) -> true; (print_message(informational, "No goal named: ~w"-[GoalName]), fail) ), !. 
 
 translate_command(_, English_String, GoalName, Goals, Scenario) :-
     tokenize(English_String, Tokens, [cased(true), spaces(true), numbers(false)]),
     unpack_tokens(Tokens, UTokens), 
     clean_comments(UTokens, CTokens), Scenario=noscenario, GoalName=nonamed, 
     (phrase(conditions(0, [], _, Goals), CTokens) ->  true  ;
-        ( once(le_input:error_notice(error, Me,_, ContextTokens)), print_message(informational, "~w ~w"-[Me,ContextTokens]), CTokens=[], fail )
+        ( once(le_input:error_notice(error, Me,_, ContextTokens)), print_message(informational, "Error in query definition ~w ~w"-[Me,ContextTokens]), CTokens=[], fail )
     ). 
 
 command_(Goal, Scenario) --> 
@@ -568,19 +574,19 @@ remove_duplicates([H|R], [H|RR]) :- remove_duplicates(R, RR).
 
 % show/1
 show(prolog) :-
-    %print_message(informational, "About to show prolog code"), 
+    %print_message(informational, "%This is prolog code"), 
     show(metarules), 
     show(rules),
     show(queries),
     show(scenarios). 
 
 show(rules) :- %trace, 
-    psem(File),
+    (psem(Module); this_capsule(Module)), 
     findall(Pr, le_input:filtered_dictionary(Pr), Preds), 
     remove_duplicates(Preds, PredsClean), 
-    %print_message(informational, "Swish Module ~w"-[SwishModule]), 
+    %print_message(informational, "Module ~w"-[Module]), 
     findall((Pred :- Body), 
-        ( member(Pred, PredsClean), clause(File:Pred, Body_), unwrapBody(Body_, Body)), Predicates),
+        ( member(Pred, PredsClean), clause(Module:Pred, Body_), unwrapBody(Body_, Body)), Predicates),
     %print_message(informational, "Rules  ~w"-[Predicates]),
     %forall(member(Clause, [(is_(A,B) :- (nonvar(B), is(A,B)))|Predicates]), portray_clause_ind(Clause)).
     forall(member(Clause, Predicates), portray_clause_ind(Clause)).
@@ -593,24 +599,24 @@ show(rules) :- %trace,
 %; RevGoalElements = GoalElements 
 %), 
 
-show(metarules) :- %trace, 
-    psem(File),
+show(metarules) :- %trace,  
+    (psem(Module); this_capsule(Module)), 
     findall((Pred :- Body), 
         (meta_dict(PredicateElements, _, _), PredicateElements\=[], 
-         Pred=..PredicateElements, clause(File:Pred, Body_), unwrapBody(Body_, Body)), Predicates),
+         Pred=..PredicateElements, clause(Module:Pred, Body_), unwrapBody(Body_, Body)), Predicates),
     forall(member(Clause, Predicates), portray_clause_ind(Clause)).
 
 show(queries) :- %trace, 
-    psem(File),
+    (psem(Module); this_capsule(Module)),
     findall((query(A,B) :- true), 
-        (clause(File:query(A,B), _)), Predicates),
+        (clause(Module:query(A,B), _)), Predicates),
     %print_message(informational, "Queries  ~w"-[Predicates]),
     forall(member(Clause, Predicates), portray_clause_ind(Clause)).
 
-show(scenarios) :- %trace, 
-    psem(File),
-    findall((example(A,B) :- true), 
-        (clause(File:example(A,B), _)), Predicates),
+show(scenarios) :- %trace,
+    (psem(Module); this_capsule(Module)),
+    findall((example(A,B) :- true),
+        (clause(Module:example(A,B), _)), Predicates),
     forall(member(Clause, Predicates), portray_clause_ind(Clause)).
 
 show(templates) :-
@@ -824,13 +830,13 @@ restore_dicts(DictEntries) :- %trace,
     %myDeclaredModule(SwishModule),
     this_capsule(SwishModule), 
     %SwishModule=user,
-    print_message(informational, "the dictionaries are being restored into module ~w"-[SwishModule]),
+    %print_message(informational, "the dictionaries are being restored into module ~w"-[SwishModule]),
     (SwishModule:local_dict(_,_,_) -> findall(dict(A,B,C), SwishModule:local_dict(A,B,C), ListDict) ; ListDict = []),
     (SwishModule:local_meta_dict(_,_,_) -> findall(meta_dict(A,B,C), SwishModule:local_meta_dict(A,B,C), ListMetaDict); ListMetaDict = []),
     %(local_dict(_,_,_) -> findall(dict(A,B,C), local_dict(A,B,C), ListDict) ; ListDict = []),
     %(local_meta_dict(_,_,_) -> findall(meta_dict(A,B,C), local_meta_dict(A,B,C), ListMetaDict); ListMetaDict = []),
     append(ListDict, ListMetaDict, DictEntries), 
-    print_message(informational, "the dictionaries being restored are ~w"-[DictEntries]),
+    %print_message(informational, "the dictionaries being restored are ~w"-[DictEntries]),
     collect_all_preds(SwishModule, DictEntries, Preds),
     %print_message(informational, "the dictionaries being set dynamics are ~w"-[Preds]),
     declare_preds_as_dynamic(SwishModule, Preds). 
@@ -906,7 +912,7 @@ user:is_it_illegal( EnText, Scenario) :- is_it_illegal( EnText, Scenario).
 
 user:holds(Fluent, Time) :- holds(Fluent, Time). 
 
-user:has_as_head_before(List, Head, Rest) :- has_as_head_before(List, Head, Rest). 
+%user:has_as_head_before(List, Head, Rest) :- has_as_head_before(List, Head, Rest). 
 
 % for term_expansion
 %user:le_taxlog_translate( en(Text), Terms) :- le_taxlog_translate( en(Text), Terms)..
@@ -997,6 +1003,21 @@ le_expanded_terms(TaxlogTerms, ExpandedTerms) :-
 
 :- multifile kp_loader:myDeclaredModule_/1. 
 
+% asserting/2
+asserting(File, ExpandedTerms) :-
+    %print_message(error, "Asserting on ~w this ~w"-[M, ExpandedTerms]), 
+    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
+        ( %print_message(informational, "Asserting File:T ~w:~w"-[File,T]), 
+         assertz(File:T))). % simulating term expansion
+
+%retracting/2
+retracting(File, ExpandedTerms) :- 
+    %print_message(error, "Cleaning ~w of ~w"-[M, ExpandedTerms]), 
+    % cleaning memory
+    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
+        ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
+         retract(File:T))).
+
 parse_and_query(File, Document, Question, Scenario, AnswerExplanation) :-
     %print_message(informational, "parse_and_query ~w ~w ~w ~w"-[File, Document, Question, Scenario]),
 	%prolog_load_context(source,File), % atom_prefix(File,'pengine://'), % process only SWISH windows
@@ -1007,35 +1028,23 @@ parse_and_query(File, Document, Question, Scenario, AnswerExplanation) :-
     retractall(psem(_)), % cleaning id of previously consulted modules  
     assert(psem(File)),  % setting this module for further reasoning
 	non_expanded_terms(File, TaxlogTerms, ExpandedTerms),
-    %print_message(informational, "Expanded to be asserted on ~w this ~w"-[M, ExpandedTerms]), 
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
-        ( %print_message(informational, "Asserting File:T ~w:~w"-[File,T]), 
-         assertz(File:T))), % simulating term expansion
-    answer( Question, Scenario, AnswerExplanation),
-    % cleaning memory
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
-        ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
-         retract(File:T))). 
+    asserting(File, ExpandedTerms), 
+    answer( Question, Scenario, AnswerExplanation), 
+    retracting(File, ExpandedTerms). 
 
 parse_and_query_all_answers(File, Document, Question, Scenario, AnswerExplanation) :-
     %print_message(informational, "parse_and_query ~w ~w ~w ~w"-[File, Document, Question, Scenario]),
 	%prolog_load_context(source,File), % atom_prefix(File,'pengine://'), % process only SWISH windows
 	%prolog_load_context(term_position,TP), stream_position_data(line_count,TP,Line),
     le_taxlog_translate(Document, _, 1, TaxlogTerms),
-    %print_message(informational, "TaxlogTerms to be asserted "-[TaxlogTerms]), 
+    %print_message(informational, "TaxlogTerms to be asserted ~w"-[TaxlogTerms]), 
     %print_message(informational, "Expanded to be asserted on ~w "-[M]), 
     retractall(psem(_)), % cleaning id of previously consulted modules  
     assert(psem(File)),  % setting this module for further reasoning
 	non_expanded_terms(File, TaxlogTerms, ExpandedTerms),
-    %print_message(informational, "Expanded to be asserted on ~w this ~w"-[M, ExpandedTerms]), 
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
-        ( %print_message(informational, "Asserting File:T ~w:~w"-[File,T]), 
-         assertz(File:T))), % simulating term expansion
-    answer_all( Question, Scenario, AnswerExplanation),
-    % cleaning memory
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
-        ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
-         retract(File:T))). 
+    asserting(File, ExpandedTerms), 
+    answer_all(Question, Scenario, AnswerExplanation), !, 
+    retracting(File, ExpandedTerms).  
 
 % Generate an answer in html, with a nested list representing the explanation.
 parse_and_query_and_explanation(File, Document, Question, Scenario, Answer, Result) :-
@@ -1045,19 +1054,17 @@ parse_and_query_and_explanation(File, Document, Question, Scenario, Answer, Resu
     retractall(psem(_)), % cleaning id of previously consulted modules 
     assert(psem(File)),  % setting this module for further reasoning
 	non_expanded_terms(File, TaxlogTerms, ExpandedTerms),
-    %M:assertz(myDeclaredModule_(File)), % to enable the reasoner 
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), assertz(File:T)), % simulating term expansion
+    %M:assertz(myDeclaredModule_(File)), % to enable the reasoner
+    asserting(File, ExpandedTerms), % simulating term expansion
     hack_module_for_taxlog(File), % to enable the reasoner
     %print_message(informational, " Asserted ~w"-[ExpandedTerms]), 
     answer( Question, Scenario, le(LE_Explanation), Result), 
-    % cleaning memory
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), 
-        ( %print_message(informational, "Removing File:T ~w:~w"-[File,T]), 
-         retract(File:T))), 
+    retracting(File, ExpandedTerms), % cleaning memory
     %with_output_to(string(Answer), write(LE_Explanation)). 
     produce_html_explanation(LE_Explanation, Answer). 
 
 % Generate a text-based answer, with a nested list representing the explanation.
+% This does not retract the kb, to permit multiple queries.
 parse_and_query_and_explanation_text(File, Document, Question, Scenario, Answer, Result) :-
     %print_message(informational, "parse_and_query and explanation ~w ~w ~w ~w"-[File, Document, Question, Scenario]),
     le_taxlog_translate(Document, _, 1, TaxlogTerms),
@@ -1067,8 +1074,8 @@ parse_and_query_and_explanation_text(File, Document, Question, Scenario, Answer,
     assert(psem(File)),  % setting this module for further reasoning
     non_expanded_terms(File, TaxlogTerms, ExpandedTerms),
     %print_message(informational, "Expanded to be asserted on ~w this ~w"-[M, ExpandedTerms]),
-    %M:assertz(myDeclaredModule_(File)),  
-    forall(member(T, [(:-module(File,[])), source_lang(en)|ExpandedTerms]), assertz(File:T)), % simulating term expansion
+    %M:assertz(myDeclaredModule_(File)), 
+    asserting(File, ExpandedTerms), % simulating term expansion
     hack_module_for_taxlog(File),
     (member(target(scasp),TaxlogTerms) -> answer(Question, Scenario);
     answer( Question, Scenario, le(LE_Explanation), Result)),    % cleaning memory
@@ -1077,11 +1084,12 @@ parse_and_query_and_explanation_text(File, Document, Question, Scenario, Answer,
     %      retract(File:T))), 
     produce_text_explanation(LE_Explanation, Answer).
 
+% Only query and return the text_explanation, without parsing again.
 query_and_explanation_text(Question, Scenario, Answer, Result) :-
-    answer( Question, Scenario, le(LE_Explanation), Result),
+    answer(Question, Scenario, le(LE_Explanation), Result),
     produce_text_explanation(LE_Explanation, Answer). 
 
-% non_expanded_terms/2 is just as the one above, but with semantics2prolog2 instead of semantics2prolog that has many other dependencies. 
+% non_expanded_terms/2 is just as the one above
 non_expanded_terms(Name, TaxlogTerms, ExpandedTerms) :-
     %print_message(informational, " Translated ~w"-[TaxlogTerms]), 
 	(TaxlogTerms\=[]-> 

@@ -1,0 +1,32 @@
+the target language is: prolog. 
+
+the templates are:
+*a holder* has the obligation that *an eventuality*.
+*a holder* compensates *a user* with *an amount* eur.
+*a holder* concludes an agreement with *a user* for a dataset.
+*a number* mb of data are used.
+the new date is *a date*.
+
+the knowledge base math includes:
+
+a holder has the obligation that
+    the holder compensates a user with an amount eur
+    if the holder concludes an agreement with the user for a dataset
+    and a number mb of data are used
+    and the amount is the number * 20.
+
+the new date is a date if
+the date is 2 days after 2025-08-10.
+
+
+scenario test is:
+%bob compensates tom with 5 eur.
+bob concludes an agreement with tom for a dataset.
+100 mb of data are used.
+
+
+query one is:
+which holder has the obligation that which eventuality.
+
+query two is:
+the new date is which date.

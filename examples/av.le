@@ -1,0 +1,118 @@
+the target language is: prolog.
+
+the templates are:
+*an agent* should *an action*.
+*an agent* must *an action*.
+*an agent* can *an action*.
+*an agent* must *an action* to *an agent*.
+*an agent* must *an action* at *a place*.
+*an agent* should *an action* to *an agent*.
+*an agent* should *an action* at *a place*.
+*an agent* sees *an item*.
+*an agent* is at *a place*.
+*an agent* is in *a place*.
+*an agent* _is *a place*.
+*an agent* cannot *an action*.
+
+% [If you proposed a new template, put it here. Otherwise, leave empty.]
+% --------------
+
+
+
+the knowledge base highway_code includes:
+
+a vehicle must an action
+if the vehicle must the action to an agent.
+a vehicle should an action
+if the vehicle should the action to an agent.
+
+% Rule 170
+% [...] give way to pedestrians crossing or waiting to cross a road into which or from which you are turning.
+% If they have started to cross they have priority, so give way (see Rule H2)
+% LLM
+a vehicle should give way to a pedestrian
+if the vehicle is at a junction
+and the pedestrian _is crossing
+    or the pedestrian _is waiting to cross.
+
+% Rule 171
+% You MUST stop behind the line at a junction with a ‘Stop’ sign and a solid white line across the road.
+% Wait for a safe gap in the traffic before you move off.
+a vehicle must stop behind the line at a junction
+if the vehicle is at the junction
+and the vehicle sees stop sign
+and the vehicle sees solid white line across the road.
+
+% Rule 172
+% The approach to a junction may have a ‘Give Way’ sign or a triangle marked on the road.
+% You MUST give way to traffic on the main road when emerging from a junction with broken white lines across the road.
+a vehicle must give way to traffic
+if the vehicle sees give way sign
+    or the vehicle sees triangle marked on the road
+    or the vehicle sees broken white lines across the road
+and the vehicle sees traffic oncoming.
+
+% Rule 173
+% Dual carriageways. When crossing or turning right, first assess whether the central reservation is deep enough 
+% to protect the full length of your vehicle.
+% If it is, then you should treat each half of the carriageway as a separate road. Wait in the central reservation
+% until there is a safe gap in the traffic on the second half of the road.
+% If the central reservation is too shallow for the length of your vehicle, wait until you can cross both carriageways in one go.
+
+% Rule 174
+% Box junctions. These have criss-cross yellow lines painted on the road (see ‘Road markings’).
+% You MUST NOT enter the box until your exit road or lane is clear. However, you may enter the box
+% and wait when you want to turn right, and are only stopped from doing so by oncoming traffic,
+% or by other vehicles waiting to turn right. At signalled roundabouts you MUST NOT enter the box
+% unless you can cross over it completely without stopping.
+
+% Rule 175
+% You MUST stop behind the white ‘Stop’ line across your side of the road unless the light is green.
+% If the amber light appears you may go on only if you have already crossed the stop line
+% or are so close to it that to stop might cause a collision.
+% a vehicle must stop behind the line at a junction
+% if the vehicle sees red light.
+
+a vehicle can enter a junction
+if the vehicle sees stop line
+and the vehicle sees green light.
+
+a vehicle can enter a junction
+if the vehicle sees stop line
+and the vehicle sees amber light
+and the vehicle is in the junction
+    or the vehicle cannot stop safely.
+
+a vehicle should assess the central reservation
+if the vehicle is crossing or turning right.
+
+a vehicle should treat each half of the carriageway as a separate road
+if the central reservation is deep enough.
+
+a vehicle should wait in the central reservation
+if there is a safe gap in the traffic on the second half of the road.
+
+a vehicle should wait until the vehicle can cross both carriageways
+if the central reservation is too shallow for the length of the vehicle.
+
+
+scenario give_way is:
+car1 is at junction1.
+car1 sees give way sign.
+person _is crossing.
+car2 is at junction1.
+car2 sees give way sign.
+
+scenario stop_behind_line is:
+car1 is at junction1.
+car1 sees stop sign.
+car1 sees solid white line across the road.
+
+query must_stop is:
+which vehicle must stop behind the line at which junction.
+
+query must is:
+which vehicle must which action.
+
+query should is:
+which vehicle should which action.
