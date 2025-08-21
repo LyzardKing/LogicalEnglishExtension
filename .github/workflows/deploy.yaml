@@ -26,7 +26,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="prerelease-main"
-          gh release view $TAG || gh release create $TAG logical-english-extension.vsix --prerelease --title "Pre-release from main" --notes "Automated build from main branch"
+          gh release view $TAG || gh release create $TAG logical-english-extension-*.vsix --prerelease --title "Pre-release from main" --notes "Automated build from main branch"
           gh release upload $TAG logical-english-extension-*.vsix --clobber
 
   publish:
