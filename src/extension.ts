@@ -75,7 +75,7 @@ query_and_explanation_text(${query}, with(${scenario}),Answer, Result).`);
 		const answer = output.value.Answer;
 		console.log("Answer:", answer);
 		// this.leOutput.appendLine("Answer: " + answer);
-	
+
 		parse_output(JSON.parse(answer), 0, this.leOutput);
 		this.leOutput.append("\n");
 		this.leOutput.show(true);
@@ -165,6 +165,8 @@ export async function activate(context: vscode.ExtensionContext) {
 			() => {
 				const editor = vscode.window.activeTextEditor;
 				const reset = editor!.document.languageId === "logical-english";
+				console.log("Active editor changed:", editor?.document.languageId, reset);
+				// Reset the SWIPL instance if the active editor is a Logical English file
 				if (reset) {
 					leExtension.handleLoadLe();
 					// leExtension.watchErrorFile();
@@ -194,6 +196,44 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('logical-english-extension.show-prolog', () => leExtension.handleShowProlog())
+	);
+
+	// Register the command to load Logical English demo files
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			"logical-english-extension.createSplitFileTemplate",
+			async () => {
+				// Create a new untitled document with the template content
+								// Create a new untitled document with demo content
+				const fileContentUint8 = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, "examples", "template.le"));
+				const fileContent = Buffer.from(fileContentUint8).toString('utf8');
+				const doc = await vscode.workspace.openTextDocument({
+					language: "logical-english", // or any language id you want
+					content: fileContent
+				});
+
+				// Show it in a split editor (to the side)
+				await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside });
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			"logical-english-extension.createSplitFileDemo",
+			async () => {
+				// Create a new untitled document with demo content
+				const fileContentUint8 = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, "examples", "dragon.le"));
+				const fileContent = Buffer.from(fileContentUint8).toString('utf8');
+				const doc = await vscode.workspace.openTextDocument({
+					language: "logical-english", // or any language id you want
+					content: fileContent
+				});
+
+				// Show it in a split editor (to the side)
+				await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside });
+			}
+		)
 	);
 }
 

@@ -77,17 +77,17 @@
         {
           "command": "logical-english-extension.query",
           "group": "navigation",
-          "when": "resourceExtname == .le"
+          "when": "editorLangId == 'logical-english' || editorLangId == 'logical-english.italiano'"
         },
         {
           "command": "logical-english-extension.query-next",
           "group": "navigation",
-          "when": "resourceExtname == .le"
+          "when": "editorLangId == 'logical-english' || editorLangId == 'logical-english.italiano'"
         },
         {
           "command": "logical-english-extension.show-prolog",
           "group": "navigation",
-          "when": "resourceExtname == .le"
+          "when": "editorLangId == 'logical-english' || editorLangId == 'logical-english.italiano'"
         }
       ]
     },
@@ -100,7 +100,54 @@
           "description": "Automatically pull the latest le pack if not already installed."
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "le_welcome",
+        "title": "Welcome to Logical English",
+        "description": "Learn how to use Logical English in VSCode",
+        "steps": [
+          {
+            "id": "createfile",
+            "title": "Create a Logical English File",
+            "description": "Create your first Logical English file by creating a new file with the .le extension.\n[Create a new empty file](command:logical-english-extension.createSplitFileTemplate)\nor\n[open an example file](command:logical-english-extension.createSplitFileDemo)",
+            "media": {
+              "markdown": "demo/create-file.md"
+            },
+            "completionEvents": [
+              "onCommand:logical-english-extension.createSplitFileTemplate",
+              "onCommand:logical-english-extension.createSplitFileDemo"
+            ]
+          },
+          {
+            "id": "savefile",
+            "title": "Save the File",
+            "icon": "$(save)",
+            "description": "Save your Logical English file with the `.le` extension to enable syntax highlighting and features.",
+            "media": {
+              "markdown": "demo/save-file.md"
+            }
+          },
+          {
+            "id": "runquery",
+            "title": "Run a Query",
+            "description": "Run your Logical English queries to see the results.",
+            "icon": "$(debug-start)",
+            "media": {
+              "markdown": "demo/run_query.md"
+            }
+          },
+          {
+            "id": "sources",
+            "title": "Sources and Documentation",
+            "description": "Get more information about Logical English and its features",
+            "media": {
+              "markdown": "demo/sources.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
